@@ -52,7 +52,10 @@ async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "Health", "Capex", "Gifts", "Clothes", "Entertainment", "Trips",
         "Wedding", "Learning", "Other"
     ]
-    keyboard = [[InlineKeyboardButton(cat, callback_data=cat)] for cat in categories]
+    keyboard = [
+        [InlineKeyboardButton(cat, callback_data=cat) for cat in categories[i:i+3]]
+        for i in range(0, len(categories), 3)
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "Select a category for your expense:",

@@ -48,9 +48,12 @@ async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Build an inline keyboard for category selection.
     categories = [
-        "Groceries", "Prepared Food", "Transport", "Utilities", "Consumables",
-        "Health", "Capex", "Gifts", "Clothes", "Entertainment", "Trips",
-        "Wedding", "Learning", "Other"
+        "Groceries", "Prepared Food", "Transport", 
+        "Utilities", "Consumables", "Health",
+        "Capex", "Gifts", "Clothes", 
+        "Entertainment", "Trips","Wedding", 
+        "Learning", "Other", "Test",
+        "Rent","Work","Savings"
     ]
     keyboard = [
         [InlineKeyboardButton(cat, callback_data=cat) for cat in categories[i:i+3]]

@@ -11,10 +11,10 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 import os
+import csv
 import datetime
 from collections import defaultdict
 from categories import category_emojis, categories
-from db import init_db, add_expense, get_monthly_summary
 
 # Enable logging
 logging.basicConfig(
@@ -74,13 +74,34 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     current_year = today.year
     current_month = today.month
     
-    # Store expense in PostgreSQL
-    add_expense(today, amount, category)
-    # Fetch monthly summary from DB
-    summary_rows = get_monthly_summary(current_year, current_month)
-    # Convert to dict for display
-    summary = {row['category']: float(row['total']) for row in summary_rows}
+    # Define the file path for the CSV
+    csv_file = "expenses.csv"
     
+    # Check if file exists to decide if header should be written.
+    write_header = not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0
+    
+    # Append the new expense to the CSV file
+    with open(csv_file, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        if write_header:
+            writer.writerow(["Date", "Amount", "Category"])
+        writer.writerow([today_str, amount, category])
+    
+    # Read the CSV file and compute category wise totals for the current month
+    summary = defaultdict(float)
+    with open(csv_file, mode='r', newline='') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            try:
+                row_date = datetime.datetime.strptime(row["Date"], "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            if row_date.year == current_year and row_date.month == current_month:
+                try:
+                    summary[row["Category"]] += float(row["Amount"])
+                except ValueError:
+                    continue
+
     # Build a simple text-based table for the summary
     table_lines = []
     header_title = f"Expense Summary for {current_year}/{current_month:02}"
@@ -110,9 +131,6 @@ def main():
     if not token:
         logger.error("Bot token not found. Please set TELEGRAM_BOT_TOKEN in your environment variables.")
         return
-
-    # Initialize PostgreSQL tables
-    init_db()
 
     application = ApplicationBuilder().token(token).build()
 

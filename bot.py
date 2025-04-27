@@ -46,17 +46,18 @@ async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     context.user_data['amount'] = amount  # Store the amount temporarily
 
-    # Build an inline keyboard for category selection.
-    categories = [
-        "Groceries", "Prepared Food", "Transport", 
-        "Utilities", "Consumables", "Health",
-        "Capex", "Gifts", "Clothes", 
-        "Entertainment", "Trips","Wedding", 
-        "Learning", "Other", "Test",
-        "Rent","Work","Savings"
-    ]
+    # Mapping of categories to emojis
+    category_emojis = {
+        "Groceries": "🛒", "Prepared Food": "🍱", "Transport": "🚌",
+        "Utilities": "💡", "Consumables": "📦", "Health": "💊",
+        "Capex": "🏗️", "Gifts": "🎁", "Clothes": "👗",
+        "Entertainment": "🎬", "Trips": "✈️", "Wedding": "💍",
+        "Learning": "📚", "Other": "❓", "Test": "🧪",
+        "Rent": "🏠", "Work": "💼", "Savings": "💰"
+    }
+    categories = list(category_emojis.keys())
     keyboard = [
-        [InlineKeyboardButton(cat, callback_data=cat) for cat in categories[i:i+3]]
+        [InlineKeyboardButton(f"{category_emojis.get(cat, '')} {cat}", callback_data=cat) for cat in categories[i:i+3]]
         for i in range(0, len(categories), 3)
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)

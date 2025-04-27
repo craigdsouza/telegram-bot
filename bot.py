@@ -14,6 +14,7 @@ import os
 import csv
 import datetime
 from collections import defaultdict
+from categories import category_emojis, categories
 
 # Enable logging
 logging.basicConfig(
@@ -46,16 +47,6 @@ async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     context.user_data['amount'] = amount  # Store the amount temporarily
 
-    # Mapping of categories to emojis
-    category_emojis = {
-        "Groceries": "🛒", "Prepared Food": "🍱", "Transport": "🚌",
-        "Utilities": "💡", "Consumables": "📦", "Health": "💊",
-        "Capex": "🏗️", "Gifts": "🎁", "Clothes": "👗",
-        "Entertainment": "🎬", "Trips": "✈️", "Wedding": "💍",
-        "Learning": "📚", "Other": "❓", "Test": "🧪",
-        "Rent": "🏠", "Work": "💼", "Savings": "💰"
-    }
-    categories = list(category_emojis.keys())
     keyboard = [
         [InlineKeyboardButton(f"{category_emojis.get(cat, '')} {cat}", callback_data=cat) for cat in categories[i:i+3]]
         for i in range(0, len(categories), 3)
@@ -120,7 +111,9 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     table_lines.append("-" * 2 * len(header_title))
 
     for cat, total in summary.items():
-        table_lines.append(f"{cat:<30}{total:>10.2f}")
+        emoji = category_emojis.get(cat, "")
+        display_cat = f"{emoji} {cat}".strip()
+        table_lines.append(f"{display_cat:<30}{total:>10.2f}")
     table_text = "\n".join(table_lines)
     
     response_text = f"Expense recorded: {amount} units in {category} category.\n\n{table_text}"

@@ -19,7 +19,7 @@ from db import init_db, add_expense, get_monthly_summary
 # Enable logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.DEBUG  # switched to DEBUG for verbose output
+    level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,6 @@ AMOUNT, CATEGORY = range(2)
 
 # /add command handler initiates the expense addition conversation.
 async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    logger.debug("User %s triggered /add", update.effective_user.id)
     await update.message.reply_text(
         "Please enter the amount for the expense:"
     )
@@ -39,7 +38,6 @@ async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 # Handler for receiving the amount.
 async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    logger.debug("User %s entered amount: %s", update.effective_user.id, update.message.text)
     text = update.message.text
     try:
         amount = float(text)
@@ -62,7 +60,6 @@ async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 # Callback query handler for the inline keyboard.
 async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    logger.debug("User %s selected category: %s", update.effective_user.id, update.callback_query.data)
     query = update.callback_query
     await query.answer()  # Acknowledge the callback
 
@@ -107,10 +104,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Expense addition canceled.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # catch-all exception logger
-    logger.exception("Exception while handling update: %s", context.error)
-
 def main():
     # Load the bot token from environment variables
     token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -134,7 +127,6 @@ def main():
     )
 
     application.add_handler(conv_handler)
-    application.add_error_handler(error_handler)
     logger.info("Bot is running. Waiting for commands...")
     application.run_polling()
 

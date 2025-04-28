@@ -25,6 +25,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Send logs to console as well, so hosted platforms like Railway can capture them
+def _enable_console_logging():
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+_enable_console_logging()
+
 # Load environment variables from .env file
 load_dotenv()
 

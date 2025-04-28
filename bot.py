@@ -73,7 +73,7 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     today_str = today.strftime('%Y-%m-%d')
     current_year = today.year
     current_month = today.month
-    
+        
     # Define the file path for the CSV
     csv_file = "expenses.csv"
     

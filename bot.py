@@ -46,6 +46,7 @@ async def debug_all(update, context):
     
 # /add command handler initiates the expense addition conversation.
 async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    logger.info("add_expense_start invoked for chat %s", update.effective_chat.id)
     await update.message.reply_text(
         "Please enter the amount for the expense:"
     )
@@ -147,7 +148,11 @@ def main():
         logger.error("Bot token not found. Please set TELEGRAM_BOT_TOKEN in your environment variables.")
         return
 
-    application = ApplicationBuilder().token(token).build()
+    # Build application and drop any pending updates so the bot ignores old messages on startup
+    application = ApplicationBuilder()\
+        .token(token)\
+        .drop_pending_updates(True)\
+        .build()
 
     # Set up the conversation handler with the states AMOUNT and CATEGORY
     conv_handler = ConversationHandler(
@@ -157,6 +162,7 @@ def main():
             CATEGORY: [CallbackQueryHandler(receive_category)]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
+        per_chat=True
     )
 
     application.add_handler(conv_handler)

@@ -148,10 +148,9 @@ def main():
         logger.error("Bot token not found. Please set TELEGRAM_BOT_TOKEN in your environment variables.")
         return
 
-    # Build application and drop any pending updates so the bot ignores old messages on startup
+    # Build application
     application = ApplicationBuilder()\
         .token(token)\
-        .drop_pending_updates(True)\
         .build()
 
     # Set up the conversation handler with the states AMOUNT and CATEGORY
@@ -170,7 +169,8 @@ def main():
     application.add_handler(MessageHandler(filters.ALL, debug_all), group=0)
 
     logger.info("Bot is running. Waiting for commands...")
-    application.run_polling()
+    # Drop pending updates on startup to ignore old messages
+    application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()

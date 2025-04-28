@@ -18,6 +18,8 @@ from categories import category_emojis, categories
 
 # Enable logging
 logging.basicConfig(
+    filename='bot.log',
+    filemode='a',
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
@@ -29,6 +31,9 @@ load_dotenv()
 # Define conversation states
 AMOUNT, CATEGORY = range(2) 
 
+async def debug_all(update, context):
+    logger.info("📥 GOT UPDATE: %s", update)
+    
 # /add command handler initiates the expense addition conversation.
 async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text(
@@ -73,7 +78,7 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     today_str = today.strftime('%Y-%m-%d')
     current_year = today.year
     current_month = today.month
-        
+
     # Define the file path for the CSV
     csv_file = "expenses.csv"
     
@@ -141,10 +146,13 @@ def main():
             AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_amount)],
             CATEGORY: [CallbackQueryHandler(receive_category)]
         },
-        fallbacks=[CommandHandler('cancel', cancel)]
+        fallbacks=[CommandHandler('cancel', cancel)],
     )
 
     application.add_handler(conv_handler)
+    # group=0 runs before your ConversationHandler
+    application.add_handler(MessageHandler(filters.ALL, debug_all), group=0)
+
     logger.info("Bot is running. Waiting for commands...")
     application.run_polling()
 

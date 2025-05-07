@@ -25,3 +25,19 @@ def init_db():
                 );
             """)
     conn.close()
+
+def add_expense(date, amount, category, description=None):
+    """
+    Inserts a row into expenses(date, amount, category, description).
+    """
+    conn = get_connection()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO expenses (date, amount, category, description)
+                VALUES (%s, %s, %s, %s);
+                """,
+                (date, amount, category, description)
+            )
+    conn.close()

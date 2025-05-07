@@ -16,6 +16,7 @@ import csv
 import datetime
 from collections import defaultdict
 from categories import category_emojis, categories
+from datetime import date
 
 # Enable logging
 logging.basicConfig(
@@ -78,13 +79,21 @@ async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # Callback query handler for the inline keyboard.
 async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    await query.answer()  # Acknowledge the callback
-
+    await query.answer()
     category = query.data
-    context.user_data['category'] = category
+    amount = context.user_data['amount']
 
-    amount = context.user_data.get('amount')
+    # 1) Record to Postgres
+    today = date.today()
+    try:
+        db.add_expense(today, amount, category)
+        logger.info("Inserted expense in Postgres: %s, %s, %s", today, amount, category)
+    except Exception as e:
+        logger.error("Failed to insert expense in Postgres: %s", e)
+        await query.edit_message_text("❌ Failed to save expense in Postgres. Try again later.")
+        return ConversationHandler.END
 
+    # 2) (later) load summary via SQL rather than reading CSV
     # Get today's date as string and determine current month and year
     today = datetime.date.today()
     today_str = today.strftime('%Y-%m-%d')

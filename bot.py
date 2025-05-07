@@ -1,5 +1,5 @@
 import logging
-import psycopg2
+import db
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ApplicationBuilder,
@@ -142,6 +142,15 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Expense addition canceled.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
+
+async def db_test(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    try:
+        conn = db.get_connection()
+        conn.close()
+        await update.message.reply_text("✅ Database connection OK")
+    except Exception as e:
+        await update.message.reply_text(f"❌ DB connection failed: {e}")
+
 def main():
     # Load the bot token from environment variables
     token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -153,6 +162,13 @@ def main():
     application = ApplicationBuilder()\
         .token(token)\
         .build()
+
+    # Initialize your table on startup
+    try:
+        db.init_db()
+        logger.info("Database initialized")
+    except Exception as e:
+        logger.error("DB init failed: %s", e)
 
     # Set up the conversation handler with the states AMOUNT and CATEGORY
     conv_handler = ConversationHandler(
@@ -166,6 +182,7 @@ def main():
     )
 
     application.add_handler(conv_handler)
+    application.add_handler(CommandHandler('dbtest', db_test))
     # group=0 runs before your ConversationHandler
     application.add_handler(MessageHandler(filters.ALL, debug_all), group=0)
 

@@ -1,5 +1,6 @@
 import os
 import psycopg2
+from typing import List, Tuple
 
 def get_connection():
     url = os.getenv("DATABASE_URL")

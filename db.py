@@ -1,5 +1,6 @@
 import os
 import psycopg2
+from datetime import date
 from typing import List, Tuple
 
 def get_connection():

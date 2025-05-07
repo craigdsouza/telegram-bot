@@ -93,57 +93,75 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text("❌ Failed to save expense in Postgres. Try again later.")
         return ConversationHandler.END
 
-    # 2) (later) load summary via SQL rather than reading CSV
-    # Get today's date as string and determine current month and year
-    today = datetime.date.today()
-    today_str = today.strftime('%Y-%m-%d')
     current_year = today.year
     current_month = today.month
 
-    # Define the file path for the CSV
-    csv_file = "expenses.csv"
-    
-    # Check if file exists to decide if header should be written.
-    write_header = not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0
-    
-    # Append the new expense to the CSV file
-    with open(csv_file, mode='a', newline='') as file:
-        writer = csv.writer(file)
-        if write_header:
-            writer.writerow(["Date", "Amount", "Category"])
-        writer.writerow([today_str, amount, category])
-    
-    # Read the CSV file and compute category wise totals for the current month
-    summary = defaultdict(float)
-    with open(csv_file, mode='r', newline='') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            try:
-                row_date = datetime.datetime.strptime(row["Date"], "%Y-%m-%d").date()
-            except ValueError:
-                continue
-            if row_date.year == current_year and row_date.month == current_month:
-                try:
-                    summary[row["Category"]] += float(row["Amount"])
-                except ValueError:
-                    continue
 
-    # Build a simple text-based table for the summary
-    table_lines = []
-    header_title = f"Expense Summary for {current_year}/{current_month:02}"
-    table_lines.append(header_title)
-    table_lines.append("-" * 2 * len(header_title))
-    table_lines.append(f"{'Category':<30}{'Total':>10}")
-    table_lines.append("-" * 2 * len(header_title))
+    try:
+        rows = db.get_monthly_summary(current_year, current_month)
+        table_lines = [header_title,  "─" * len(header_title), f"{'Category':<30}{'Total':>10}", "─" * len(header_title)]
+        for cat, total in rows:
+            emoji = category_emojis.get(cat, "")
+            display_cat = f"{emoji} {cat}".strip()
+            table_lines.append(f"{display_cat:<30}{total:>10.2f}")
+        table_text = "\n".join(table_lines)
+        response_text = f"Expense recorded: {amount} units in {category} category.\n\n{table_text}"
+        await query.edit_message_text(response_text)
+    except Exception as e:
+        logger.error("Failed to get monthly summary: %s", e)
+        await query.edit_message_text("❌ Failed to get monthly summary. Try again later.")
+        return ConversationHandler.END
 
-    for cat, total in summary.items():
-        emoji = category_emojis.get(cat, "")
-        display_cat = f"{emoji} {cat}".strip()
-        table_lines.append(f"{display_cat:<30}{total:>10.2f}")
-    table_text = "\n".join(table_lines)
+    # # 2) (later) load summary via SQL rather than reading CSV
+    # # Get today's date as string and determine current month and year
+    # today = datetime.date.today()
+    # today_str = today.strftime('%Y-%m-%d')
     
-    response_text = f"Expense recorded: {amount} units in {category} category.\n\n{table_text}"
-    await query.edit_message_text(response_text)
+
+    # # Define the file path for the CSV
+    # csv_file = "expenses.csv"
+    
+    # # Check if file exists to decide if header should be written.
+    # write_header = not os.path.isfile(csv_file) or os.path.getsize(csv_file) == 0
+    
+    # # Append the new expense to the CSV file
+    # with open(csv_file, mode='a', newline='') as file:
+    #     writer = csv.writer(file)
+    #     if write_header:
+    #         writer.writerow(["Date", "Amount", "Category"])
+    #     writer.writerow([today_str, amount, category])
+    
+    # # Read the CSV file and compute category wise totals for the current month
+    # summary = defaultdict(float)
+    # with open(csv_file, mode='r', newline='') as file:
+    #     reader = csv.DictReader(file)
+    #     for row in reader:
+    #         try:
+    #             row_date = datetime.datetime.strptime(row["Date"], "%Y-%m-%d").date()
+    #         except ValueError:
+    #             continue
+    #         if row_date.year == current_year and row_date.month == current_month:
+    #             try:
+    #                 summary[row["Category"]] += float(row["Amount"])
+    #             except ValueError:
+    #                 continue
+
+    # # Build a simple text-based table for the summary
+    # table_lines = []
+    # header_title = f"Expense Summary for {current_year}/{current_month:02}"
+    # table_lines.append(header_title)
+    # table_lines.append("-" * 2 * len(header_title))
+    # table_lines.append(f"{'Category':<30}{'Total':>10}")
+    # table_lines.append("-" * 2 * len(header_title))
+
+    # for cat, total in summary.items():
+    #     emoji = category_emojis.get(cat, "")
+    #     display_cat = f"{emoji} {cat}".strip()
+    #     table_lines.append(f"{display_cat:<30}{total:>10.2f}")
+    # table_text = "\n".join(table_lines)
+    
+    # response_text = f"Expense recorded: {amount} units in {category} category.\n\n{table_text}"
+    # await query.edit_message_text(response_text)
     return ConversationHandler.END
 
 # Cancellation handler in case the user wishes to abort

@@ -41,3 +41,25 @@ def add_expense(date, amount, category, description=None):
                 (date, amount, category, description)
             )
     conn.close()
+
+def get_monthly_summary(year: int, month: int) -> List[Tuple[str, float]]:
+    """
+    Returns a list of (category, total_amount) for the given year/month.
+    """
+    sql = """
+      SELECT category, SUM(amount) AS total
+      FROM expenses
+      WHERE date >= %s AND date < %s
+      GROUP BY category
+      ORDER BY category;
+    """
+    start = date(year, month, 1)
+    # advance one month safely
+    if month == 12:
+        end = date(year+1, 1, 1)
+    else:
+        end = date(year, month+1, 1)
+    conn = get_connection()
+    with conn, conn.cursor() as cur:
+        cur.execute(sql, (start, end))
+        return cur.fetchall()  # list of (category, total)

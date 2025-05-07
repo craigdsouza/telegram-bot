@@ -99,6 +99,7 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     try:
         rows = db.get_monthly_summary(current_year, current_month)
+        header_title = f"Expense Summary for {current_year}/{current_month:02}"
         table_lines = [header_title,  "─" * len(header_title), f"{'Category':<30}{'Total':>10}", "─" * len(header_title)]
         for cat, total in rows:
             emoji = category_emojis.get(cat, "")

@@ -21,7 +21,7 @@ def init_db():
                     date DATE NOT NULL,
                     amount NUMERIC NOT NULL,
                     category TEXT NOT NULL,
-                    description TEXT,
+                    description TEXT
                 );
             """)
     conn.close()

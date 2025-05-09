@@ -65,3 +65,25 @@ def get_monthly_summary(year: int, month: int) -> List[Tuple[str, float]]:
     with conn, conn.cursor() as cur:
         cur.execute(sql, (start, end))
         return cur.fetchall()  # list of (category, total)
+
+
+def fetch_new_entries(conn, last_id=None):
+    """
+    Query Postgres for entries with id > last_id, or all if last_id is None.
+    Returns a list of tuples (id, date, amount, category, description).
+    """
+    cur = conn.cursor()
+    if last_id:
+        cur.execute(
+            "SELECT id, date, amount, category, description"
+            " FROM expenses WHERE id > %s ORDER BY id",
+            (last_id,)
+        )
+    else:
+        cur.execute(
+            "SELECT id, date, amount, category, description"
+            " FROM expenses ORDER BY id"
+        )
+    rows = cur.fetchall()
+    cur.close()
+    return rows

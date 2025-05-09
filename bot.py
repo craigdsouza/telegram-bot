@@ -82,10 +82,41 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await query.answer()
     category = query.data
     context.user_data['category'] = category
+    # Prompt for description or allow skipping via button
+    keyboard = [[InlineKeyboardButton("None", callback_data="NONE_DESC")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(
-        f"Category selected: {category}. Please enter a description or type 'None' to skip."
+        f"Category selected: {category}.\nPlease enter a description or click 'None' to skip.",
+        reply_markup=reply_markup
     )
     return DESCRIPTION
+
+async def receive_description_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle 'None' button click for description."""
+    query = update.callback_query
+    await query.answer()
+    description = 'None'
+    # proceed as in receive_description
+    amount = context.user_data['amount']
+    category = context.user_data['category']
+    today = date.today()
+    try:
+        db.add_expense(today, amount, category, description)
+        logger.info("Inserted expense with no description: %s, %s, %s", today, amount, category)
+    except Exception as e:
+        logger.error("Failed to insert expense in Postgres: %s", e)
+        await query.edit_message_text("❌ Failed to save expense. Try again later.")
+        return ConversationHandler.END
+    # Show summary
+    current_year, current_month = today.year, today.month
+    rows = db.get_monthly_summary(current_year, current_month)
+    header = f"Expense Summary for {current_year}/{current_month:02}"
+    lines = [header, "─"*22, f"{'Category':<30}{'Total':>10}", "─"*22]
+    for cat, total in rows:
+        emoji = category_emojis.get(cat, "")
+        lines.append(f"{(emoji+' '+cat).strip():<30}{total:>10.2f}")
+    await query.edit_message_text(f"Recorded: {amount} in {category} (None).\n\n" + "\n".join(lines))
+    return ConversationHandler.END
 
 async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     description = update.message.text.strip()
@@ -170,7 +201,10 @@ def main():
         states={
             AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_amount)],
             CATEGORY: [CallbackQueryHandler(receive_category)],
-            DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_description)]
+            DESCRIPTION: [
+                CallbackQueryHandler(receive_description_button, pattern="^NONE_DESC$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_description)
+            ]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
         per_chat=True

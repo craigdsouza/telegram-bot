@@ -41,7 +41,7 @@ _enable_console_logging()
 load_dotenv()
 
 # Define conversation states
-AMOUNT, CATEGORY = range(2) 
+AMOUNT, CATEGORY, DESCRIPTION = range(3) 
 
 async def debug_all(update, context):
     logger.info("📥 GOT UPDATE: %s", update)
@@ -81,38 +81,54 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     query = update.callback_query
     await query.answer()
     category = query.data
-    amount = context.user_data['amount']
+    context.user_data['category'] = category
+    await query.edit_message_text(
+        f"Category selected: {category}. Please enter a description or type 'None' to skip."
+    )
+    return DESCRIPTION
 
-    # 1) Record to Postgres
+async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    description = update.message.text.strip()
+    if description.lower() == 'none' or not description:
+        description = 'None'
+    amount = context.user_data['amount']
+    category = context.user_data['category']
     today = date.today()
     try:
-        db.add_expense(today, amount, category)
-        logger.info("Inserted expense in Postgres: %s, %s, %s", today, amount, category)
+        db.add_expense(today, amount, category, description)
+        logger.info(
+            "Inserted expense in Postgres: %s, %s, %s, %s",
+            today, amount, category, description
+        )
     except Exception as e:
         logger.error("Failed to insert expense in Postgres: %s", e)
-        await query.edit_message_text("❌ Failed to save expense in Postgres. Try again later.")
+        await update.message.reply_text(
+            "❌ Failed to save expense in Postgres. Try again later."
+        )
         return ConversationHandler.END
-
+    # Show updated summary
     current_year = today.year
     current_month = today.month
-
-
     try:
         rows = db.get_monthly_summary(current_year, current_month)
         header_title = f"Expense Summary for {current_year}/{current_month:02}"
-        table_lines = [header_title,  "─" * 22, f"{'Category':<30}{'Total':>10}", "─" * 22]
+        table_lines = [header_title, "─" * 22, f"{'Category':<30}{'Total':>10}", "─" * 22]
         for cat, total in rows:
             emoji = category_emojis.get(cat, "")
             display_cat = f"{emoji} {cat}".strip()
             table_lines.append(f"{display_cat:<30}{total:>10.2f}")
         table_text = "\n".join(table_lines)
-        response_text = f"Expense recorded: {amount} units in {category} category.\n\n{table_text}"
-        await query.edit_message_text(response_text)
+        response = (
+            f"Expense recorded: {amount} units in {category} "
+            f"({description}).\n\n{table_text}"
+        )
+        await update.message.reply_text(response)
     except Exception as e:
         logger.error("Failed to get monthly summary: %s", e)
-        await query.edit_message_text("❌ Failed to get monthly summary. Try again later.")
+        await update.message.reply_text(
+            "❌ Failed to get monthly summary. Try again later."
+        )
         return ConversationHandler.END
-
     return ConversationHandler.END
 
 # Cancellation handler in case the user wishes to abort
@@ -148,12 +164,13 @@ def main():
     except Exception as e:
         logger.error("DB init failed: %s", e)
 
-    # Set up the conversation handler with the states AMOUNT and CATEGORY
+    # Set up the conversation handler with the states AMOUNT, CATEGORY, DESCRIPTION
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('add', add_expense_start)],
         states={
             AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_amount)],
-            CATEGORY: [CallbackQueryHandler(receive_category)]
+            CATEGORY: [CallbackQueryHandler(receive_category)],
+            DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_description)]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
         per_chat=True

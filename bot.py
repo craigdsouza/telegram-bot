@@ -212,7 +212,8 @@ def main():
 
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler('dbtest', db_test))
-    application.add_handler(MessageHandler(filters.ALL, debug_all), group=0)
+    # Log all updates after handlers, for debugging
+    application.add_handler(MessageHandler(filters.ALL, debug_all), group=1)
 
     logger.info("Bot is running. Waiting for commands...")
     application.run_polling(drop_pending_updates=True)

@@ -5,13 +5,12 @@ category_emojis = {
     "Groceries": "🛒",
     "Prepared Food": "🍱",
     "Transport": "🚌",
+    "Household Items": "🍽️",
     "Utilities": "💡",
-    "Consumables": "📦",
     "Health": "💊",
     "Capex": "🏗️",
     "Gifts": "🎁",
     "Clothes": "👗",
-    "Household Items": "🍽️",
     "Self-care": "🛁",
     "Entertainment": "🎬",
     "Trips": "✈️",
@@ -21,7 +20,7 @@ category_emojis = {
     "Test": "🧪",
     "Rent": "🏠",
     "Work": "💼",
-    "Savings": "💰"
+    "Investments": "💰"
 }
 
 # List of categories in insertion order

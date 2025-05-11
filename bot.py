@@ -56,6 +56,7 @@ async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 # Handler for receiving the amount.
 async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the user input for amount."""
     text = update.message.text
     try:
         amount = float(text)
@@ -78,6 +79,7 @@ async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 # Callback query handler for the inline keyboard.
 async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the selected category."""
     query = update.callback_query
     await query.answer()
     category = query.data
@@ -107,18 +109,13 @@ async def receive_description_button(update: Update, context: ContextTypes.DEFAU
         logger.error("Failed to insert expense in Postgres: %s", e)
         await query.edit_message_text("❌ Failed to save expense. Try again later.")
         return ConversationHandler.END
-    # Show summary
-    current_year, current_month = today.year, today.month
-    rows = db.get_monthly_summary(current_year, current_month)
-    header = f"Expense Summary for {current_year}/{current_month:02}"
-    lines = [header, "─"*22, f"{'Category':<30}{'Total':>10}", "─"*22]
-    for cat, total in rows:
-        emoji = category_emojis.get(cat, "")
-        lines.append(f"{(emoji+' '+cat).strip():<30}{total:>10.2f}")
-    await query.edit_message_text(f"Recorded: {amount} in {category} (None).\n\n" + "\n".join(lines))
+    # Send summary
+    msg = build_summary_message(amount, category, description)
+    await query.edit_message_text(msg)
     return ConversationHandler.END
 
 async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle user input for description."""
     description = update.message.text.strip()
     if description.lower() == 'none' or not description:
         description = 'None'
@@ -137,30 +134,23 @@ async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE
             "❌ Failed to save expense in Postgres. Try again later."
         )
         return ConversationHandler.END
-    # Show updated summary
-    current_year = today.year
-    current_month = today.month
-    try:
-        rows = db.get_monthly_summary(current_year, current_month)
-        header_title = f"Expense Summary for {current_year}/{current_month:02}"
-        table_lines = [header_title, "─" * 22, f"{'Category':<30}{'Total':>10}", "─" * 22]
-        for cat, total in rows:
-            emoji = category_emojis.get(cat, "")
-            display_cat = f"{emoji} {cat}".strip()
-            table_lines.append(f"{display_cat:<30}{total:>10.2f}")
-        table_text = "\n".join(table_lines)
-        response = (
-            f"Expense recorded: {amount} units in {category} "
-            f"({description}).\n\n{table_text}"
-        )
-        await update.message.reply_text(response)
-    except Exception as e:
-        logger.error("Failed to get monthly summary: %s", e)
-        await update.message.reply_text(
-            "❌ Failed to get monthly summary. Try again later."
-        )
-        return ConversationHandler.END
+    # Send summary
+    msg = build_summary_message(amount, category, description)
+    await update.message.reply_text(msg)
     return ConversationHandler.END
+
+# Helper to format and send monthly summary
+def build_summary_message(amount, category, description):
+    """Build a formatted summary message for the current month."""
+    today = date.today()
+    rows = db.get_monthly_summary(today.year, today.month)
+    header = f"Expense recorded: {amount} units in {category} ({description}).\n\nExpense Summary for {today.year}/{today.month:02}"
+    lines = [header, "─"*22, f"{'Category':<30}{'Total':>10}", "─"*22]
+    for cat, total in rows:
+        emoji = category_emojis.get(cat, "")
+        display = f"{emoji} {cat}".strip()
+        lines.append(f"{display:<30}{total:>10.2f}")
+    return "\n".join(lines)
 
 # Cancellation handler in case the user wishes to abort
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -212,11 +202,9 @@ def main():
 
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler('dbtest', db_test))
-    # group=0 runs before your ConversationHandler
     application.add_handler(MessageHandler(filters.ALL, debug_all), group=0)
 
     logger.info("Bot is running. Waiting for commands...")
-    # Drop pending updates on startup to ignore old messages
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':

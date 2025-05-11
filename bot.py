@@ -155,7 +155,7 @@ def build_summary_message(amount, category, description):
     # Include zero totals for categories without entries
     totals = {cat: 0.0 for cat in categories}
     for cat_name, total in rows:
-        totals[cat_name] = total
+        totals[cat_name] = float(total)
     header = f"Expense recorded: {amount} units in {category} ({description}).\n\nExpense Summary for {today.year}/{today.month:02}"
     lines = [header, "─"*22, f"{'Category':<30}{'Total':>10}", "─"*22]
     # Sort categories by descending expense
@@ -166,9 +166,7 @@ def build_summary_message(amount, category, description):
         lines.append(f"{display:<30}{total:>10.2f}")
     # Append grand total
     lines.append("─"*22)
-    print("\n\n\n\n\n",totals)
     grand = sum(totals.values())
-    print(f"Grand total: {grand}")
     lines.append(f"{'Grand Total':<30}{grand:>10.2f}")
     return "\n".join(lines)
 

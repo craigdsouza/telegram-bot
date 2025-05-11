@@ -150,10 +150,16 @@ def build_summary_message(amount, category, description):
         totals[cat_name] = total
     header = f"Expense recorded: {amount} units in {category} ({description}).\n\nExpense Summary for {today.year}/{today.month:02}"
     lines = [header, "─"*22, f"{'Category':<30}{'Total':>10}", "─"*22]
-    for cat_name in categories:
+    # Sort categories by descending expense
+    sorted_items = sorted(totals.items(), key=lambda kv: kv[1], reverse=True)
+    for cat_name, total in sorted_items:
         emoji = category_emojis.get(cat_name, "")
         display = f"{emoji} {cat_name}".strip()
-        lines.append(f"{display:<30}{totals.get(cat_name, 0):>10.2f}")
+        lines.append(f"{display:<30}{total:>10.2f}")
+    # Append grand total
+    lines.append("─"*22)
+    grand = sum(totals.values())
+    lines.append(f"{'Grand Total':<30}{grand:>10.2f}")
     return "\n".join(lines)
 
 # Cancellation handler in case the user wishes to abort

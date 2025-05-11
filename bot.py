@@ -166,7 +166,9 @@ def build_summary_message(amount, category, description):
         lines.append(f"{display:<30}{total:>10.2f}")
     # Append grand total
     lines.append("─"*22)
+    print("\n\n\n\n\n",totals)
     grand = sum(totals.values())
+    print(f"Grand total: {grand}")
     lines.append(f"{'Grand Total':<30}{grand:>10.2f}")
     return "\n".join(lines)
 

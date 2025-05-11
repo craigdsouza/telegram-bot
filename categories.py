@@ -11,6 +11,8 @@ category_emojis = {
     "Capex": "🏗️",
     "Gifts": "🎁",
     "Clothes": "👗",
+    "Household Items": "🍽️",
+    "Self-care": "🛁",
     "Entertainment": "🎬",
     "Trips": "✈️",
     "Wedding": "💍",

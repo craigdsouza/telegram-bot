@@ -144,12 +144,16 @@ def build_summary_message(amount, category, description):
     """Build a formatted summary message for the current month."""
     today = date.today()
     rows = db.get_monthly_summary(today.year, today.month)
+    # Include zero totals for categories without entries
+    totals = {cat: 0.0 for cat in categories}
+    for cat_name, total in rows:
+        totals[cat_name] = total
     header = f"Expense recorded: {amount} units in {category} ({description}).\n\nExpense Summary for {today.year}/{today.month:02}"
     lines = [header, "─"*22, f"{'Category':<30}{'Total':>10}", "─"*22]
-    for cat, total in rows:
-        emoji = category_emojis.get(cat, "")
-        display = f"{emoji} {cat}".strip()
-        lines.append(f"{display:<30}{total:>10.2f}")
+    for cat_name in categories:
+        emoji = category_emojis.get(cat_name, "")
+        display = f"{emoji} {cat_name}".strip()
+        lines.append(f"{display:<30}{totals.get(cat_name, 0):>10.2f}")
     return "\n".join(lines)
 
 # Cancellation handler in case the user wishes to abort

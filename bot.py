@@ -110,8 +110,12 @@ async def receive_description_button(update: Update, context: ContextTypes.DEFAU
         await query.edit_message_text("❌ Failed to save expense. Try again later.")
         return ConversationHandler.END
     # Send summary
-    msg = build_summary_message(amount, category, description)
-    await query.edit_message_text(msg)
+    try:
+        msg = build_summary_message(amount, category, description)
+        await query.edit_message_text(msg)
+    except Exception as e:
+        logger.exception("Failed to send summary message: %s", e)
+        await query.edit_message_text("❌ Failed to send summary message. Try again later.")
     return ConversationHandler.END
 
 async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -135,8 +139,12 @@ async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return ConversationHandler.END
     # Send summary
-    msg = build_summary_message(amount, category, description)
-    await update.message.reply_text(msg)
+    try:
+        msg = build_summary_message(amount, category, description)
+        await update.message.reply_text(msg)
+    except Exception as e:
+        logger.exception("Failed to send summary message: %s", e)
+        await query.edit_message_text("❌ Failed to send summary message. Try again later.")
     return ConversationHandler.END
 
 # Helper to format and send monthly summary

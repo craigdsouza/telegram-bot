@@ -1,4 +1,5 @@
 import logging
+import sys, signal
 import db
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -184,47 +185,66 @@ async def db_test(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         await update.message.reply_text(f"❌ DB connection failed: {e}")
 
+
+def _handle_sigterm(signum, frame):
+    logger.info("SIGTERM received—shutting down")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, _handle_sigterm)
+
 def main():
-    # Load the bot token from environment variables
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not token:
-        logger.error("Bot token not found. Please set TELEGRAM_BOT_TOKEN in your environment variables.")
-        return
-
-    # Build application
-    application = ApplicationBuilder()\
-        .token(token)\
-        .build()
-
-    # Initialize your table on startup
     try:
-        db.init_db()
-        logger.info("Database initialized")
+        # Load the bot token from environment variables
+        token = os.getenv("TELEGRAM_BOT_TOKEN")
+        if not token:
+            logger.error("Bot token not found. Please set TELEGRAM_BOT_TOKEN in your environment variables.")
+            return
+
+        # Build application
+        application = ApplicationBuilder()\
+            .token(token)\
+            .build()
+
+        # Initialize your table on startup
+        try:
+            db.init_db()
+            logger.info("Database initialized")
+        except Exception as e:
+            logger.error("DB init failed: %s", e)
+
+        # Set up the conversation handler with the states AMOUNT, CATEGORY, DESCRIPTION
+        conv_handler = ConversationHandler(
+            entry_points=[CommandHandler('add', add_expense_start)],
+            states={
+                AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_amount)],
+                CATEGORY: [CallbackQueryHandler(receive_category)],
+                DESCRIPTION: [
+                    CallbackQueryHandler(receive_description_button, pattern="^NONE_DESC$"),
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, receive_description)
+                ]
+            },
+            fallbacks=[CommandHandler('cancel', cancel)],
+            per_chat=True
+        )
+
+        application.add_handler(conv_handler)
+        application.add_handler(CommandHandler('dbtest', db_test))
+        # Log all updates after handlers, for debugging
+        application.add_handler(MessageHandler(filters.ALL, debug_all), group=1)
+
+        logger.info("Bot is running. Waiting for commands...")
+        application.run_polling(drop_pending_updates=True)
     except Exception as e:
-        logger.error("DB init failed: %s", e)
-
-    # Set up the conversation handler with the states AMOUNT, CATEGORY, DESCRIPTION
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('add', add_expense_start)],
-        states={
-            AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_amount)],
-            CATEGORY: [CallbackQueryHandler(receive_category)],
-            DESCRIPTION: [
-                CallbackQueryHandler(receive_description_button, pattern="^NONE_DESC$"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_description)
-            ]
-        },
-        fallbacks=[CommandHandler('cancel', cancel)],
-        per_chat=True
-    )
-
-    application.add_handler(conv_handler)
-    application.add_handler(CommandHandler('dbtest', db_test))
-    # Log all updates after handlers, for debugging
-    application.add_handler(MessageHandler(filters.ALL, debug_all), group=1)
-
-    logger.info("Bot is running. Waiting for commands...")
-    application.run_polling(drop_pending_updates=True)
+        logger.error("An error occurred in main: %s", e)
+        sys.exit(1)
+    finally:
+        # Close the database connection if it was opened
+        try:
+            db.close_connection()
+            logger.info("Database connection closed.")
+        except Exception as e:
+            logger.error("Failed to close database connection: %s", e)
+        logger.info("Bot shutting down.")
 
 if __name__ == '__main__':
     main()

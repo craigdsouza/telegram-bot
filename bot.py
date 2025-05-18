@@ -13,6 +13,8 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 import os
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import csv
 import datetime
 from collections import defaultdict
@@ -40,6 +42,21 @@ _enable_console_logging()
 
 # Load environment variables from .env file
 load_dotenv()
+
+# start a simple HTTP server for health checks
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Always respond 200 OK
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+def run_health_server():
+    port = int(os.environ.get("PORT", 8000))
+    server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    # This will block forever handling health-check requests
+    server.serve_forever()
 
 # Define conversation states
 AMOUNT, CATEGORY, DESCRIPTION = range(3) 
@@ -194,6 +211,10 @@ signal.signal(signal.SIGTERM, _handle_sigterm)
 
 def main():
     try:
+        # Start the health check server in a separate thread
+        threading.Thread(target=run_health_server, daemon=True).start()
+        logger.info("Health check server started.")
+        
         # Load the bot token from environment variables
         token = os.getenv("TELEGRAM_BOT_TOKEN")
         if not token:

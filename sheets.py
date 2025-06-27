@@ -81,7 +81,7 @@ def append_data_to_sheet(ws, rows):
     """
     Append each tuple (id, date, amount, category, description) as a new row.
     """
-    for id_val, date_val, amount_val, category, description in rows:
+    for date_val, amount_val, category, description, id_val in rows:
         ws.append_row([
             id_val,
             date_val.isoformat(),

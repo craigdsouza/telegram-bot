@@ -170,22 +170,35 @@ def build_summary_message(amount, category, description):
     """Build a formatted summary message for the current month."""
     today = date.today()
     rows = db.get_monthly_summary(today.year, today.month)
+
     # Include zero totals for categories without entries
     totals = {cat: 0.0 for cat in categories}
     for cat_name, total in rows:
         totals[cat_name] = float(total)
-    header = f"Expense recorded: {amount} units in {category} ({description}).\n\nExpense Summary for {today.year}/{today.month:02}"
-    lines = [header, "─"*22, f"{'Category':<30}{'Total':>10}", "─"*22]
+
+    # Column widths
+    CAT_WIDTH   = 18   # 15-char name + emoji + space + padding
+    AMT_WIDTH   = 10
+    TOTAL_WIDTH = CAT_WIDTH + AMT_WIDTH
+
+    # ASCII separator
+    sep_line = "-" * TOTAL_WIDTH
+
+    header = f"Expense recorded: {amount} units in {category} ({description}).\n\nSummary for {today.year}/{today.month:02}"
+    
+    lines = ["```", header, sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
+
     # Sort categories by descending expense
     sorted_items = sorted(totals.items(), key=lambda kv: kv[1], reverse=True)
     for cat_name, total in sorted_items:
         emoji = category_emojis.get(cat_name, "")
         display = f"{emoji} {cat_name}".strip()
-        lines.append(f"{display:<30}{total:>10.2f}")
-    # Append grand total
-    lines.append("─"*22)
+        lines.append(f"{display:<{CAT_WIDTH}}{total:>{AMT_WIDTH}.0f}")
+    
+    lines.append(sep_line)
     grand = sum(totals.values())
-    lines.append(f"{'Grand Total':<30}{grand:>10.2f}")
+    lines.append(f"{'Grand Total':<{CAT_WIDTH}}{grand:>{AMT_WIDTH}.0f}")
+    lines.append("```")
     return "\n".join(lines)
 
 # Cancellation handler in case the user wishes to abort

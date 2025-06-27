@@ -3,3 +3,4 @@ __pycache__
 *.log
 *acb.json
 *.b64
+backups

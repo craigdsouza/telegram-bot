@@ -42,10 +42,13 @@ if deleted_ids:
 if existing_ids:
     last_id = max(existing_ids)
     new_rows = fetch_new_entries(conn, last_id)
+    print(f"found {len(new_rows)} new rows")
 else:
     new_rows = fetch_new_entries(conn)
+    print(f"found {len(new_rows)} new rows")
 cur.close()
 conn.close()
 
 # 7) Append only new rows
+print("attempting to sync new rows:",new_rows)
 append_data_to_sheet(ws, new_rows)

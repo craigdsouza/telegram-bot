@@ -79,13 +79,26 @@ def remove_deleted_records(ws, ids_to_delete):
 
 def append_data_to_sheet(ws, rows):
     """
-    Append each tuple (id, date, amount, category, description) as a new row.
+    Append each row as a new row to the worksheet.
+    rows can be a list of dictionaries or a list of tuples.
     """
-    for date_val, amount_val, category, description, id_val in rows:
-        ws.append_row([
-            id_val,
-            date_val.isoformat(),
-            float(amount_val),
-            category,
-            description
-        ])
+    for row in rows:
+        if isinstance(row, dict):
+            # Handle dictionary format
+            ws.append_row([
+                row['id'],
+                row['date'].isoformat() if hasattr(row['date'], 'isoformat') else row['date'],
+                float(row['amount']),
+                row['category'],
+                row.get('description', '')
+            ])
+        else:
+            # Handle tuple format (legacy)
+            id_val, date_val, amount_val, category, description = row
+            ws.append_row([
+                id_val,
+                date_val.isoformat() if hasattr(date_val, 'isoformat') else date_val,
+                float(amount_val),
+                category,
+                description
+            ])

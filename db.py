@@ -1,5 +1,6 @@
 import os
 import psycopg2
+from datetime import datetime
 from datetime import date
 from typing import List, Tuple, Dict, Any, Optional
 from psycopg2.extras import DictCursor
@@ -89,12 +90,17 @@ def _decrypt_row(row: Dict[str, Any]) -> Dict[str, Any]:
         row['salt_hex']
     )
     
-    return encryptor.decrypt_expense({
+    decrypted = encryptor.decrypt_expense({
         'date': bytes(row['date_encrypted']).decode('utf-8'),
         'amount': bytes(row['amount_encrypted']).decode('utf-8'),
         'category': bytes(row['category_encrypted']).decode('utf-8'),
         'description': bytes(row['description_encrypted']).decode('utf-8') if row['description_encrypted'] else ''
     })
+
+    # convert date string to date object
+    decrypted['date'] = datetime.strptime(decrypted['date'], '%Y-%m-%d').date()
+    decrypted['amount'] = float(decrypted['amount'])
+    return decrypted
 
 def get_monthly_summary(year: int, month: int) -> List[Tuple[str, float]]:
     """
@@ -151,7 +157,37 @@ def fetch_new_entries(conn, last_id: Optional[int] = None) -> List[Dict[str, Any
     finally:
         cur.close()
 
+def test_decryption():
+    """Test function to verify decryption works with the database."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=DictCursor) as cur:  # Use DictCursor for named columns
+            cur.execute("SELECT * FROM expenses LIMIT 1")
+            row = cur.fetchone()
+            if row:
+                print("\n=== Encrypted Row ===")
+                print(f"ID: {row['id']}")
+                print(f"Salt hex: {row['salt_hex']}")
+                print("Encrypted fields (hex):")
+                for field in ['date_encrypted', 'amount_encrypted', 'category_encrypted', 'description_encrypted']:
+                    print(f"  {field}: {bytes(row[field]).hex() if row[field] else 'NULL'}")
+                
+                print("\n=== Decrypted Data ===")
+                try:
+                    decrypted = _decrypt_row(row)
+                    for key, value in decrypted.items():
+                        print(f"{key}: {value!r} (type: {type(value).__name__})")
+                except Exception as e:
+                    print(f"Error during decryption: {e}")
+                    raise
+    finally:
+        conn.close()
+
+
 def close_connection(conn=None):
     """Close a database connection if it's open."""
     if conn and not conn.closed:
         conn.close()
+
+if __name__ == "__main__":
+    test_decryption()

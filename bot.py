@@ -25,11 +25,11 @@ logger = logging.getLogger(__name__)
 
 # Send logs to console as well, so hosted platforms like Railway can capture them
 def _enable_console_logging():
-    console_handler = logging.StreamHandler(sys.stdout) # send logs to console
+    console_handler = logging.StreamHandler() # send logs to console
     console_handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(formatter)
-    logging.getLogger().addHandler(console_handler)
+    logger.addHandler(console_handler)
 
 _enable_console_logging()
 
@@ -255,6 +255,7 @@ def _handle_sigterm(signum, frame):
 signal.signal(signal.SIGTERM, _handle_sigterm)
 
 def main():
+    
     try:
         # Start the health check server in a separate thread
         threading.Thread(target=run_health_server, daemon=True).start()

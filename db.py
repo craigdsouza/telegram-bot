@@ -9,7 +9,24 @@ from dotenv import load_dotenv
 
 from crypto_utils import ExpenseEncryptor
 
+# Enable logging
+logging.basicConfig(
+    filename='db.log',
+    filemode='a',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
+
+# Send logs to console as well
+def _enable_console_logging():
+    console_handler = logging.StreamHandler() # send logs to console
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+_enable_console_logging()
 # Load environment variables
 load_dotenv()
 

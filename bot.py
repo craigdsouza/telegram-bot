@@ -1,6 +1,5 @@
 import logging
 import sys, signal
-import db
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ApplicationBuilder,
@@ -23,8 +22,8 @@ from datetime import date
 
 # Enable logging
 logging.basicConfig(
-    filename='bot.log',
-    filemode='a',
+    # filename='bot.log',
+    # filemode='a',
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
@@ -32,13 +31,15 @@ logger = logging.getLogger(__name__)
 
 # Send logs to console as well, so hosted platforms like Railway can capture them
 def _enable_console_logging():
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout) # send logs to console
     console_handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    logging.getLogger().addHandler(console_handler)
 
 _enable_console_logging()
+
+import db # import db after logging is configured
 
 # Load environment variables from .env file
 load_dotenv()

@@ -66,23 +66,35 @@ async def debug_all(update, context):
     
 # /add command handler initiates the expense addition conversation.
 async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    logger.info("add_expense_start invoked for chat %s", update.effective_chat.id)
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    logger.info(f"[CONV_START] User {user_id} in chat {chat_id} - Starting /add command")
+    logger.info(f"[CONTEXT] User data: {context.user_data}")
+    logger.info(f"[CONTEXT] Chat data: {context.chat_data}")
+    
     await update.message.reply_text(
         "Please enter the amount for the expense:"
     )
+    logger.info(f"[STATE_CHANGE] User {user_id} -> AMOUNT state")
     return AMOUNT
 
 # Handler for receiving the amount.
 async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle the user input for amount."""
+    user_id = update.effective_user.id
     text = update.message.text
+    logger.info(f"[STATE] AMOUNT - User {user_id} entered: {text}")
+    
     try:
         amount = float(text)
+        logger.info(f"[VALIDATION] User {user_id} - Valid amount: {amount}")
     except ValueError:
+        logger.warning(f"[VALIDATION] User {user_id} - Invalid amount entered: {text}")
         await update.message.reply_text("Invalid amount. Please enter a numeric value:")
         return AMOUNT
     
     context.user_data['amount'] = amount  # Store the amount temporarily
+    logger.info(f"[USER_DATA] User {user_id} - Stored amount: {amount}")
 
     keyboard = [
         [InlineKeyboardButton(f"{category_emojis.get(cat, '')} {cat}", callback_data=cat) for cat in categories[i:i+3]]
@@ -93,6 +105,8 @@ async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "Select a category for your expense:",
         reply_markup=reply_markup
     )
+    logger.info(f"[STATE_CHANGE] User {user_id} -> CATEGORY state")
+    logger.info(f"[CONTEXT] User data after AMOUNT: {context.user_data}")
     return CATEGORY
 
 # Callback query handler for the inline keyboard.
@@ -100,8 +114,11 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """Handle the selected category."""
     query = update.callback_query
     await query.answer()
+    user_id = update.effective_user.id
     category = query.data
     context.user_data['category'] = category
+    logger.info(f"[STATE] CATEGORY - User {user_id} selected: {category}")
+    logger.info(f"[USER_DATA] User {user_id} - Stored category: {category}")
     # Prompt for description or allow skipping via button
     keyboard = [[InlineKeyboardButton("None", callback_data="NONE_DESC")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -109,17 +126,22 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         f"Category selected: {category}.\nPlease enter a description or click 'None' to skip.",
         reply_markup=reply_markup
     )
+    logger.info(f"[STATE_CHANGE] User {user_id} -> DESCRIPTION state")
+    logger.info(f"[CONTEXT] User data after CATEGORY: {context.user_data}")
     return DESCRIPTION
 
 async def receive_description_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle 'None' button click for description."""
     query = update.callback_query
     await query.answer()
+    user_id = update.effective_user.id
     description = 'None'
+    logger.info(f"[STATE] DESCRIPTION - User {user_id} clicked 'None' for description")
     # proceed as in receive_description
     amount = context.user_data['amount']
     category = context.user_data['category']
     today = date.today()
+    logger.info(f"[PROCESSING] User {user_id} - Processing expense: {amount} {category} ({description}) on {today}")
     try:
         db.add_expense(today, amount, category, description)
         logger.info("Inserted expense with no description: %s, %s, %s", today, amount, category)
@@ -138,9 +160,13 @@ async def receive_description_button(update: Update, context: ContextTypes.DEFAU
 
 async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle user input for description."""
+    user_id = update.effective_user.id
     description = update.message.text.strip()
+    logger.info(f"[STATE] DESCRIPTION - User {user_id} entered description: {description}")
+    
     if description.lower() == 'none' or not description:
         description = 'None'
+        logger.info(f"[PROCESSING] User {user_id} - Using default 'None' description")
     amount = context.user_data['amount']
     category = context.user_data['category']
     today = date.today()
@@ -160,9 +186,13 @@ async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         msg = build_summary_message(amount, category, description)
         await update.message.reply_text(msg)
+        logger.info(f"[SUCCESS] User {user_id} - Expense recorded successfully")
     except Exception as e:
-        logger.exception("Failed to send summary message: %s", e)
-        await query.edit_message_text("❌ Failed to send summary message. Try again later.")
+        logger.exception(f"[ERROR] User {user_id} - Failed to send summary message: {e}")
+        await update.message.reply_text("❌ Failed to send summary message. Try again later.")
+    finally:
+        logger.info(f"[CONV_END] User {user_id} - Conversation completed successfully")
+        logger.info(f"[CONTEXT] Final user data: {context.user_data}")
     return ConversationHandler.END
 
 # Helper to format and send monthly summary
@@ -203,6 +233,9 @@ def build_summary_message(amount, category, description):
 
 # Cancellation handler in case the user wishes to abort
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id = update.effective_user.id
+    logger.info(f"[CONV_END] User {user_id} - Conversation canceled")
+    logger.info(f"[CONTEXT] Final user data: {context.user_data}")
     await update.message.reply_text("Expense addition canceled.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
@@ -258,7 +291,9 @@ def main():
                 ]
             },
             fallbacks=[CommandHandler('cancel', cancel)],
-            per_chat=True
+            per_chat=False, # allow multiple conversations
+            per_message=False, # allow multiple messages
+            per_user=True, # allow multiple users
         )
 
         application.add_handler(conv_handler)

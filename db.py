@@ -7,19 +7,9 @@ from typing import List, Tuple, Dict, Any, Optional
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
 
-# Configure logging if not already configured
-if not logging.getLogger().handlers:
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler('bot.log'),
-            logging.StreamHandler()
-        ]
-    )
-
 # Set up module-level logger
 logger = logging.getLogger(__name__)
+logger.info("DB module loaded")
 from crypto_utils import ExpenseEncryptor
 
 # Load environment variables
@@ -122,6 +112,7 @@ def get_monthly_summary(year: int, month: int) -> List[Tuple[str, float]]:
     Get monthly summary with decrypted data.
     Returns a list of (category, total_amount) for the given year/month.
     """
+    logger.info("[SUMMARY] Getting monthly summary for year={year} month={month}")
     start = date(year, month, 1)
     logger.info(f"[SUMMARY] Fetching expenses from {start} for year={year} month={month}")
     end = date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1)

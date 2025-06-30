@@ -200,13 +200,13 @@ def build_summary_message(amount, category, description):
     """Build a formatted summary message for the current month."""
     today = date.today()
     rows = db.get_monthly_summary(today.year, today.month)
-    logger.debug(f"[SUMMARY] Raw rows from DB: {rows}")
+    logger.info(f"[SUMMARY] Raw rows from DB: {rows}")
 
     # Include zero totals for categories without entries
-    logger.debug("[SUMMARY] Building totals dictionary")
+    logger.info("[SUMMARY] Building totals dictionary")
     totals = {cat: 0.0 for cat in categories}
     for cat_name, total in rows:
-        logger.debug(f"[SUMMARY] Adding total {total} for category {cat_name}")
+        logger.info(f"[SUMMARY] Adding total {total} for category {cat_name}")
         totals[cat_name] = float(total)
 
     # Column widths
@@ -230,7 +230,7 @@ def build_summary_message(amount, category, description):
     
     lines.append(sep_line)
     grand = sum(totals.values())
-    logger.debug(f"[SUMMARY] Grand total: {grand}")
+    logger.info(f"[SUMMARY] Grand total: {grand}")
     lines.append(f"{'Grand Total':<{CAT_WIDTH}}{grand:>{AMT_WIDTH}.0f}")
     lines.append("```")
     return "\n".join(lines)

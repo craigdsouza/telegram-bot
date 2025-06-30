@@ -21,14 +21,6 @@ from categories import category_emojis, categories
 from datetime import date
 
 # Enable logging
-logging.basicConfig(
-    # filename='bot.log',
-    # filemode='a',
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
 # Send logs to console as well, so hosted platforms like Railway can capture them
 def _enable_console_logging():
     console_handler = logging.StreamHandler(sys.stdout) # send logs to console

@@ -7,6 +7,17 @@ from typing import List, Tuple, Dict, Any, Optional
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
 
+# Configure logging if not already configured
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler('bot.log'),
+            logging.StreamHandler()
+        ]
+    )
+
 # Set up module-level logger
 logger = logging.getLogger(__name__)
 from crypto_utils import ExpenseEncryptor

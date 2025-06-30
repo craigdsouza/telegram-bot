@@ -1,5 +1,6 @@
 import logging
 import sys, signal
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ApplicationBuilder,
@@ -21,6 +22,12 @@ from categories import category_emojis, categories
 from datetime import date
 
 # Enable logging
+logging.basicConfig(
+    filename='bot.log',
+    filemode='a',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 # Send logs to console as well, so hosted platforms like Railway can capture them
@@ -271,6 +278,11 @@ def main():
         application = ApplicationBuilder()\
             .token(token)\
             .build()
+
+        # 1) Remove any webhook Telegram might still have registered
+        asyncio.get_event_loop().run_until_complete(
+            application.bot.delete_webhook()
+        )
 
         # Initialize your table on startup
         try:

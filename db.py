@@ -7,9 +7,6 @@ from typing import List, Tuple, Dict, Any, Optional
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
 
-# Set up module-level logger
-logger = logging.getLogger(__name__)
-logger.info("DB module loaded")
 from crypto_utils import ExpenseEncryptor
 
 # Load environment variables

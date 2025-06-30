@@ -1,10 +1,14 @@
 import os
 import psycopg2
+import logging
 from datetime import datetime
 from datetime import date
 from typing import List, Tuple, Dict, Any, Optional
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
+
+# Set up module-level logger
+logger = logging.getLogger(__name__)
 from crypto_utils import ExpenseEncryptor
 
 # Load environment variables
@@ -108,6 +112,7 @@ def get_monthly_summary(year: int, month: int) -> List[Tuple[str, float]]:
     Returns a list of (category, total_amount) for the given year/month.
     """
     start = date(year, month, 1)
+    logger.debug(f"[SUMMARY] Fetching expenses from {start} for year={year} month={month}")
     end = date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1)
     
     conn = get_connection()
@@ -120,13 +125,17 @@ def get_monthly_summary(year: int, month: int) -> List[Tuple[str, float]]:
             """, (start, end))
             
             # Decrypt and aggregate
+            logger.debug("[SUMMARY] Decrypting expense rows for aggregation")
             category_totals = {}
-            for row in cur.fetchall():
+            fetched_rows = cur.fetchall()
+            logger.debug(f"[SUMMARY] Fetched {len(fetched_rows)} rows for month {month}")
+            for row in fetched_rows:
                 decrypted = _decrypt_row(row)
                 category = decrypted['category']
+                logger.debug(f"[SUMMARY] Row id={row.get('id')} category={category} amount={decrypted['amount']}")
                 amount = float(decrypted['amount'])
                 category_totals[category] = category_totals.get(category, 0) + amount
-            
+            logger.debug(f"[SUMMARY] Aggregated totals: {category_totals}")
             return list(category_totals.items())
     finally:
         conn.close()

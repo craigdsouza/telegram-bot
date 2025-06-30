@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from crypto_utils import ExpenseEncryptor
 
+logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 

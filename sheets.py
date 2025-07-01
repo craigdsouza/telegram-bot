@@ -101,7 +101,7 @@ def remove_gsheet_records_marked_for_deletion(ws):
     values = ws.get_all_values()
     for i, row in enumerate(values[1:], start=2): # start from 2nd row
         if row[8] == 'y':
-            ws.delete_rows(i+1,i+2)
+            ws.delete_rows(i,i+1)
 
 def append_data_to_sheet(ws, rows):
     """

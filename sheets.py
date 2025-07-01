@@ -67,8 +67,20 @@ def get_existing_sheet_ids(ws):
             continue
     return ids
 
+def get_ids_marked_for_deletion(ws):
+    """
+    Read all rows and collect the integer IDs from the first column.
+    """
+    values = ws.get_all_values()
+    if len(values) < 2:
+        return set()
+    ids = set()
+    for row in values[1:]:
+        if row[9] == 'y':
+            ids.add(int(row[0]))
+    return ids
 
-def remove_deleted_records(ids_to_delete):
+def remove_db_records_marked_for_deletion(ids_to_delete):
     """
     Remove rows from the Postgres DB for any ID no longer in the Google Sheet.
     ids_to_delete: set of int IDs to delete
@@ -82,6 +94,14 @@ def remove_deleted_records(ids_to_delete):
     cur.close()
     conn.close()
 
+def remove_gsheet_records_marked_for_deletion(ws):
+    """
+    Remove rows from the Google Sheet for any ID marked for deletion.
+    """
+    values = ws.get_all_values()
+    for i, row in enumerate(values[1:], start=2): # start from 2nd row
+        if row[9] == 'y':
+            ws.delete_row(i)
 
 def append_data_to_sheet(ws, rows):
     """

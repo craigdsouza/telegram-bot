@@ -6,7 +6,9 @@ from sheets import (
     authenticate_google_sheets,
     get_or_create_worksheet,
     get_existing_sheet_ids,
-    remove_deleted_records,
+    get_ids_marked_for_deletion,
+    remove_db_records_marked_for_deletion,
+    remove_gsheet_records_marked_for_deletion,
     append_data_to_sheet
 )
 from db import fetch_new_entries
@@ -49,7 +51,7 @@ ws = get_or_create_worksheet(sh, TAB_NAME)
 values = ws.get_all_values()
 if not values:
     logger.info("Google Sheet is empty, adding header row")
-    ws.append_row(["id","user_id", "date", "amount", "category", "description", "created_at", "mode"])
+    ws.append_row(["id","user_id", "date", "amount", "category", "description", "created_at", "mode", "delete (y/n)"])
 else:
     logger.info("Google Sheet is not empty")
 
@@ -78,15 +80,23 @@ if len(gsheet_ids)==0:
 else:
     logger.info("Google Sheet has data, syncing changes")
     # Remove records deleted from Google Sheet
-    deleted_ids = db_ids - gsheet_ids           # Find IDs that exist in Postgres DB but not in Google Sheet
+    # deleted_ids = db_ids - gsheet_ids           # Find IDs marked for deletion in column I
+    deleted_ids = get_ids_marked_for_deletion(ws)
     if deleted_ids:
-        logger.info(f"Found {len(deleted_ids)} deleted records in Postgres DB with IDs: {deleted_ids}")
-        remove_deleted_records(deleted_ids)
-        logger.info(f"Removed {len(deleted_ids)} deleted records from Google Sheet with IDs: {deleted_ids}")
+        logger.info(f"Found {len(deleted_ids)} records marked for deletion in Google Sheet with IDs: {deleted_ids}")
+        remove_db_records_marked_for_deletion(deleted_ids)
+        logger.info(f"Removed {len(deleted_ids)} records marked for deletion from Postgres DB with IDs: {deleted_ids}")
+        remove_gsheet_records_marked_for_deletion(ws)
+        logger.info(f"Removed {len(deleted_ids)} records marked for deletion from Google Sheet with IDs: {deleted_ids}")
+    
+    # Again, read existing IDs from Google Sheet
+    gsheet_ids = get_existing_sheet_ids(ws)    # Get all IDs from Google Sheet
+    logger.info(f"Found {len(gsheet_ids)} existing records in Google Sheet")
     
     # Query new rows in Postgres DB by id since last_id from Google Sheet
     if gsheet_ids:
         last_id = max(gsheet_ids)
+        logger.info(f"Last ID in Google Sheet: {last_id}")
         new_rows = fetch_new_entries(conn, last_id)
         logger.info(f"Found {len(new_rows)} new rows after last ID: {last_id}")
     else:

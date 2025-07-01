@@ -45,7 +45,7 @@ sh = authenticate_google_sheets()
 TAB_NAME = "sync-daily-expenses"   # ← whatever tab you want
 ws = get_or_create_worksheet(sh, TAB_NAME)
 
-# Read existing IDs from Google Sheet
+# Read existing IDs from Google Sheet AND Postgres DB
 values = ws.get_all_values()
 if not values:
     logger.info("Google Sheet is empty, adding header row")
@@ -57,18 +57,18 @@ else:
 gsheet_ids = get_existing_sheet_ids(ws)    # Get all IDs from Google Sheet
 logger.info(f"Found {len(gsheet_ids)} existing records in Google Sheet")
 
-# Remove records deleted from Google Sheet
 cur.execute("SELECT id FROM expenses")        
 db_ids = {row[0] for row in cur.fetchall()}   # Get all IDs from Postgres DB
 logger.info(f"Found {len(db_ids)} existing records in Postgres DB")
 
+# Remove records deleted from Google Sheet
 deleted_ids = db_ids - gsheet_ids           # Find IDs that exist in Postgres DB but not in Google Sheet
 if deleted_ids:
     logger.info(f"Found {len(deleted_ids)} deleted records in Postgres DB with IDs: {deleted_ids}")
     remove_deleted_records(ws, deleted_ids)
     logger.info(f"Removed {len(deleted_ids)} deleted records from Google Sheet with IDs: {deleted_ids}")
 
-# Query only latest rows in Postgres DB by id
+# Query new rows in Postgres DB by id since last_id from Google Sheet
 if gsheet_ids:
     last_id = max(gsheet_ids)
     new_rows = fetch_new_entries(conn, last_id)
@@ -79,8 +79,25 @@ else:
 cur.close()
 conn.close()
 
-# Append only new rows
+# Append to Google Sheet only new rows after last_id
 if new_rows:
     logger.info(f"Attempting to sync {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
     append_data_to_sheet(ws, new_rows)
     logger.info(f"Synced {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
+
+# # Read existing IDs from Google Sheet AND Postgres DB
+# values = ws.get_all_values()
+
+# gsheet_ids = get_existing_sheet_ids(ws)    # Get all IDs from Google Sheet
+# logger.info(f"Found {len(gsheet_ids)} existing records in Google Sheet")
+
+# cur.execute("SELECT id FROM expenses")        
+# db_ids = {row[0] for row in cur.fetchall()}   # Get all IDs from Postgres DB
+# logger.info(f"Found {len(db_ids)} existing records in Postgres DB")
+
+# # Append to Postgres DB any new rows from Google Sheet
+# new_ids = gsheet_ids - db_ids           # Find IDs that exist in Google Sheet but not in Postgres DB
+# if new_ids:
+#     logger.info(f"Found {len(new_ids)} new records in Google Sheet with IDs: {new_ids}")
+#     append_data_to_db(ws, new_ids)
+#     logger.info(f"Synced {len(new_ids)} new records to Postgres DB with IDs: {new_ids}")

@@ -67,7 +67,7 @@ def get_existing_sheet_ids(ws):
     return ids
 
 
-def remove_deleted_records(ws, ids_to_delete):
+def remove_deleted_records(ids_to_delete):
     """
     Remove rows from the Postgres DB for any ID no longer in the Google Sheet.
     ids_to_delete: set of int IDs to delete
@@ -107,3 +107,5 @@ def append_data_to_sheet(ws, rows):
                 category,
                 description
             ])
+
+

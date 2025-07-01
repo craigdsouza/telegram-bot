@@ -82,7 +82,7 @@ def remove_deleted_records(ids_to_delete):
     conn.close()
 
 
-def append_data_to_sheet(ws, rows):
+def append_data_to_sheet(rows):
     """
     Append each row as a new row to the worksheet.
     rows can be a list of dictionaries or a list of tuples.

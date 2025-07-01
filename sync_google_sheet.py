@@ -52,7 +52,6 @@ if not values:
     ws.append_row(["id","user_id", "date", "amount", "category", "description", "created_at", "mode"])
 else:
     logger.info("Google Sheet is not empty")
-    logger.info(f"Found this in Google Sheet: {values}")
 
 gsheet_ids = get_existing_sheet_ids(ws)    # Get all IDs from Google Sheet
 logger.info(f"Found {len(gsheet_ids)} existing records in Google Sheet")

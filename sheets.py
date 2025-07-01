@@ -115,7 +115,7 @@ def append_data_to_sheet(ws, rows):
             ws.append_row([
                 row['id'],
                 row['user_id'],
-                row['date'].isoformat() if hasattr(row['date'], 'isoformat') else row['date'],
+                row['date'].strftime('%d-%B-%y'),
                 float(row['amount']),
                 row['category'],
                 row.get('description', '')
@@ -126,7 +126,7 @@ def append_data_to_sheet(ws, rows):
             ws.append_row([
                 id_val,
                 user_id,
-                date_val.isoformat() if hasattr(date_val, 'isoformat') else date_val,
+                date_val.strftime('%d-%B-%y'),
                 float(amount_val),
                 category,
                 description

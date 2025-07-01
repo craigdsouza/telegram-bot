@@ -74,7 +74,7 @@ if len(gsheet_ids)==0:
     # Append to Google Sheet only new rows after last_id
     if len(new_rows)>0:
         logger.info(f"Attempting to sync {len(new_rows)} new rows to Google Sheet")
-        append_data_to_sheet(new_rows)
+        append_data_to_sheet(ws, new_rows)
         logger.info(f"Synced {len(new_rows)} new rows to Google Sheet")
 else:
     logger.info("Google Sheet has data, syncing changes")
@@ -99,5 +99,5 @@ else:
     # Append to Google Sheet only new rows after last_id
     if len(new_rows)>0:
         logger.info(f"Attempting to sync {len(new_rows)} new rows to Google Sheet")
-        append_data_to_sheet(new_rows)
+        append_data_to_sheet(ws, new_rows)
         logger.info(f"Synced {len(new_rows)} new rows to Google Sheet")

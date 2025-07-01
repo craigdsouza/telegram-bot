@@ -14,6 +14,25 @@ from dotenv import load_dotenv
 import argparse
 
 def main():
+    """
+    One-time script to clear and bulk import expenses from a CSV file into Postgres.
+    Usage: python import_from_csv.py path/to/file.csv
+
+    Args:
+        csv_path: Path to CSV file
+        clear: Clear table before import
+    
+    Requires:
+        DATABASE_PUBLIC_URL or DATABASE_URL environment variable
+        CSV file with columns in this order: sno, user_id, date, amount, category, description, mode
+        sno is not used directly but it can be integers
+        user_id must be an integer, cannot be null
+        date must be in format dd-Mon-yy
+        amount must be a float
+        category must be one of the categories in categories.py
+        description can be empty
+        mode can be empty
+    """
     parser = argparse.ArgumentParser(
         description="Import expenses from CSV. Append by default, use --clear to truncate first."
     )
@@ -44,14 +63,17 @@ def main():
                     reader = csv.DictReader(csvfile)
                     for row in reader:
                         # Parse fields
-                        date_val = datetime.strptime(row.get("Date", ""), "%d-%m-%Y").date()
-                        amount = float(row.get("Amount", 0))
-                        category = row.get("Category", "").strip()
-                        description = row.get("Description", "").strip() or None
-                        rows.append((date_val, amount, category, description))
+                        user_id = row.get("user_id", "")
+                        date_val = datetime.strptime(row.get("date", ""), "%d-%b-%y").date()
+                        amount = float(row.get("amount", 0))
+                        category = row.get("category", "").strip()
+                        description = row.get("description", "").strip() or None
+                        mode = row.get("mode", "").strip() or None
+                        rows.append((user_id, date_val, amount, category, description, mode))
+                        print(f"Prepared row: {user_id}, {date_val}, {amount}, {category}, {description}, {mode}")
                 # Bulk insert
                 sql = (
-                    "INSERT INTO expenses (date, amount, category, description) VALUES %s"
+                    "INSERT INTO expenses (user_id, date, amount, category, description, mode) VALUES %s"
                 )
                 execute_values(cur, sql, rows)
                 print(f"Inserted {len(rows)} rows into expenses.")

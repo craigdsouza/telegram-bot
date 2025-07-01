@@ -292,10 +292,20 @@ async def receive_description_button(update: Update, context: ContextTypes.DEFAU
     amount = context.user_data['amount']
     category = context.user_data['category']
     today = date.today()
-    logger.info(f"[PROCESSING] User {user_id} - Processing expense: {amount} {category} ({description}) on {today}")
+    # Get the user's primary key from context (set in add_expense_start)
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        logger.error(f"[ERROR] User {update.effective_user.id} - No user_id in context")
+        await update.message.reply_text("❌ Error: User not properly registered. Please try /start again.")
+        return ConversationHandler.END
+        
     try:
-        db.add_expense(today, amount, category, description)
-        logger.info("Inserted expense with no description: %s, %s, %s", today, amount, category)
+        # Pass the user's primary key to add_expense
+        db.add_expense(today, amount, category, description, user_id=user_id)
+        logger.info(
+            "[DB] Inserted expense in Postgres - User ID: %s, Date: %s, Amount: %s, Category: %s, Description: %s",
+            user_id, today, amount, category, description
+        )
     except Exception as e:
         logger.error("Failed to insert expense in Postgres: %s", e)
         await query.edit_message_text("❌ Failed to save expense. Try again later.")
@@ -321,11 +331,19 @@ async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE
     amount = context.user_data['amount']
     category = context.user_data['category']
     today = date.today()
+    # Get the user's primary key from context (set in add_expense_start)
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        logger.error(f"[ERROR] User {update.effective_user.id} - No user_id in context")
+        await update.message.reply_text("❌ Error: User not properly registered. Please try /start again.")
+        return ConversationHandler.END
+        
     try:
-        db.add_expense(today, amount, category, description)
+        # Pass the user's primary key to add_expense
+        db.add_expense(today, amount, category, description, user_id=user_id)
         logger.info(
-            "Inserted expense in Postgres: %s, %s, %s, %s",
-            today, amount, category, description
+            "[DB] Inserted expense in Postgres - User ID: %s, Date: %s, Amount: %s, Category: %s, Description: %s",
+            user_id, today, amount, category, description
         )
     except Exception as e:
         logger.error("Failed to insert expense in Postgres: %s", e)

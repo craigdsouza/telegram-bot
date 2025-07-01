@@ -9,6 +9,15 @@ import base64
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from gspread.exceptions import WorksheetNotFound
+import psycopg2
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Connect to Postgres
+dsn = os.getenv("DATABASE_PUBLIC_URL")  # public proxy
+
+
 
 def authenticate_google_sheets():
     """
@@ -60,21 +69,17 @@ def get_existing_sheet_ids(ws):
 
 def remove_deleted_records(ws, ids_to_delete):
     """
-    Remove rows from the sheet for any ID no longer in the database.
+    Remove rows from the Postgres DB for any ID no longer in the Google Sheet.
     ids_to_delete: set of int IDs to delete
     """
+    conn = psycopg2.connect(dsn)
+    cur = conn.cursor()
     if not ids_to_delete:
         return
-    values = ws.get_all_values()
-    rows_to_delete = []
-    for idx, row in enumerate(values[1:], start=2):
-        try:
-            if int(row[0]) in ids_to_delete:
-                rows_to_delete.append(idx)
-        except:
-            continue
-    for row_idx in sorted(rows_to_delete, reverse=True):
-        ws.delete_rows(row_idx)
+    cur.execute("DELETE FROM expenses WHERE id IN %s", (tuple(ids_to_delete),))
+    conn.commit()
+    cur.close()
+    conn.close()
 
 
 def append_data_to_sheet(ws, rows):

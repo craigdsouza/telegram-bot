@@ -279,11 +279,6 @@ def main():
             .token(token)\
             .build()
 
-        # 1) Remove any webhook Telegram might still have registered
-        asyncio.get_event_loop().run_until_complete(
-            application.bot.delete_webhook()
-        )
-
         # Initialize your table on startup
         try:
             db.init_db()

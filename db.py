@@ -55,21 +55,34 @@ def init_db():
             """)
     conn.close()
 
-def add_expense(date, amount, category, description=None):
+def add_expense(date, amount, category, description=None, user_id=None):
     """
-    Inserts a row into expenses(date, amount, category, description).
+    Inserts a row into expenses(date, amount, category, description, user_id).
+    
+    Args:
+        date: The date of the expense
+        amount: The amount of the expense
+        category: The category of the expense
+        description: Optional description of the expense
+        user_id: The ID of the user who made the expense
     """
     conn = get_connection()
-    with conn:
+    try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO expenses (date, amount, category, description)
-                VALUES (%s, %s, %s, %s);
+                INSERT INTO expenses (date, amount, category, description, user_id)
+                VALUES (%s, %s, %s, %s, %s);
                 """,
-                (date, amount, category, description)
+                (date, amount, category, description, user_id)
             )
-    conn.close()
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error in add_expense: {e}")
+        raise
+    finally:
+        if conn and not conn.closed:
+            conn.close()
 
 def get_monthly_summary(year: int, month: int) -> List[Tuple[str, float]]:
     """
@@ -119,3 +132,86 @@ def close_connection(conn=None):
     """Close a database connection if it's open."""
     if conn and not conn.closed:
         conn.close()
+
+def get_or_create_user(telegram_user_id: int, first_name: str = None, last_name: str = None) -> dict:
+    """
+    Get a user by Telegram ID, or create a new user if they don't exist.
+    Returns a dictionary with user data.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            # Try to get existing user
+            cur.execute(
+                """
+                SELECT * FROM users 
+                WHERE telegram_user_id = %s
+                """,
+                (telegram_user_id,)
+            )
+            user = cur.fetchone()
+            
+            if user:
+                # Update last_active timestamp for existing user
+                cur.execute(
+                    """
+                    UPDATE users 
+                    SET last_active = CURRENT_TIMESTAMP,
+                        first_name = COALESCE(%s, first_name),
+                        last_name = COALESCE(%s, last_name)
+                    WHERE telegram_user_id = %s
+                    RETURNING *
+                    """,
+                    (first_name, last_name, telegram_user_id)
+                )
+                updated_user = cur.fetchone()
+                conn.commit()
+                logger.info(f"Updated existing user: {updated_user}")
+                return dict(updated_user) if updated_user else None
+            else:
+                # Create new user
+                cur.execute(
+                    """
+                    INSERT INTO users (telegram_user_id, first_name, last_name)
+                    VALUES (%s, %s, %s)
+                    RETURNING *
+                    """,
+                    (telegram_user_id, first_name, last_name)
+                )
+                new_user = cur.fetchone()
+                conn.commit()
+                logger.info(f"Created new user: {new_user}")
+                return dict(new_user) if new_user else None
+    except Exception as e:
+        logger.error(f"Error in get_or_create_user: {e}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn and not conn.closed:
+            conn.close()
+
+def get_user_by_telegram_id(telegram_user_id: int) -> dict:
+    """
+    Get a user by their Telegram user ID.
+    Returns a dictionary with user data or None if not found.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute(
+                """
+                SELECT * FROM users 
+                WHERE telegram_user_id = %s
+                """,
+                (telegram_user_id,)
+            )
+            user = cur.fetchone()
+            logger.info(f"Found user: {user}")
+            return dict(user) if user else None
+    except Exception as e:
+        logger.error(f"Error in get_user_by_telegram_id: {e}")
+        raise
+    finally:
+        if conn and not conn.closed:
+            conn.close()

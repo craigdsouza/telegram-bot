@@ -66,50 +66,130 @@ AMOUNT, CATEGORY, DESCRIPTION = range(3)
 async def debug_all(update, context):
     logger.info("📥 GOT UPDATE: %s", update)
     
+async def ensure_user_registered(update: Update, context: ContextTypes.DEFAULT_TYPE) -> dict:
+    """Ensure the user is registered in our database.
+    
+    Returns:
+        dict: User data if registration was successful, None otherwise
+    """
+    user = update.effective_user
+    logger.info(f"Ensuring user is registered: {user.id} - {user.first_name} {user.last_name}")
+    
+    try:
+        # Get or create the user in the database
+        db_user = db.get_or_create_user(
+            telegram_user_id=user.id,
+            first_name=user.first_name,
+            last_name=user.last_name
+        )
+        
+        if not db_user:
+            logger.error(f"Failed to register user {user.id} in database")
+            await update.message.reply_text(
+                "❌ Sorry, there was an error setting up your account. Please try again."
+            )
+            return None
+            
+        logger.info(f"User registered/retrieved: {db_user}")
+        return db_user
+        
+    except Exception as e:
+        logger.error(f"Error in ensure_user_registered: {e}")
+        await update.message.reply_text(
+            "❌ Sorry, there was an error setting up your account. Please try again."
+        )
+        return None
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a welcome message when the command /start is issued."""
+    user = update.effective_user
+    logger.info(f"Start command received from user {user.id}")
+    
+    # Ensure user is registered
+    db_user = await ensure_user_registered(update, context)
+    if not db_user:
+        return
+    
+    welcome_message = (
+        f"👋 Welcome, {user.first_name}!\n\n"
+        "I'm your personal expense tracker. Here's what you can do:\n"
+        "• /add - Add a new expense\n"
+        "• /summary - View monthly summary\n"
+        "• /help - Show available commands"
+    )
+    
+    await update.message.reply_text(welcome_message)
+
 # /add command handler initiates the expense addition conversation.
 async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
-    logger.info(f"[CONV_START] User {user_id} in chat {chat_id} - Starting /add command")
-    logger.info(f"[CONTEXT] User data: {context.user_data}")
-    logger.info(f"[CONTEXT] Chat data: {context.chat_data}")
+    """Initiate the expense addition conversation."""
+    # Ensure user is registered
+    db_user = await ensure_user_registered(update, context)
+    if not db_user:
+        return ConversationHandler.END
+        
+    # Store user_id in context for later use
+    context.user_data['user_id'] = db_user['id']
+    logger.info(f"User {user.id} registered with user_id {db_user['id']}")
     
     await update.message.reply_text(
-        "Please enter the amount for the expense:"
+        "💰 Enter the amount spent:",
+        reply_markup=ReplyKeyboardRemove(),
     )
-    logger.info(f"[STATE_CHANGE] User {user_id} -> AMOUNT state")
     return AMOUNT
 
 # Handler for receiving the amount.
 async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle the user input for amount."""
-    user_id = update.effective_user.id
-    text = update.message.text
-    logger.info(f"[STATE] AMOUNT - User {user_id} entered: {text}")
-    
     try:
-        amount = float(text)
-        logger.info(f"[VALIDATION] User {user_id} - Valid amount: {amount}")
+        # Ensure user is registered (in case they bypassed /start)
+        if 'user_id' not in context.user_data:
+            db_user = await ensure_user_registered(update, context)
+            if not db_user:
+                return ConversationHandler.END
+            context.user_data['user_id'] = db_user['id']
+        
+        # Store the amount in context
+        amount_str = update.message.text.strip()
+        amount = float(amount_str)
+        
+        if amount <= 0:
+            await update.message.reply_text("❌ Amount must be greater than 0. Please try again:")
+            return AMOUNT
+            
+        context.user_data['amount'] = amount
+        
+        # Create inline keyboard for categories
+        keyboard = []
+        for i in range(0, len(categories), 2):
+            row = []
+            # Add first category in row
+            cat1 = categories[i]
+            row.append(InlineKeyboardButton(
+                f"{category_emojis.get(cat1, '📝')} {cat1}", 
+                callback_data=f"cat_{cat1}"
+            ))
+            # Add second category in row if it exists
+            if i + 1 < len(categories):
+                cat2 = categories[i+1]
+                row.append(InlineKeyboardButton(
+                    f"{category_emojis.get(cat2, '📝')} {cat2}", 
+                    callback_data=f"cat_{cat2}"
+                ))
+            keyboard.append(row)
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            f"💸 You spent ₹{amount:.2f}. Select a category:",
+            reply_markup=reply_markup,
+        )
+        return CATEGORY
+        
     except ValueError:
-        logger.warning(f"[VALIDATION] User {user_id} - Invalid amount entered: {text}")
-        await update.message.reply_text("Invalid amount. Please enter a numeric value:")
+        logger.error("Invalid amount format: %s", update.message.text)
+        await update.message.reply_text("❌ Please enter a valid number for the amount:")
         return AMOUNT
-    
-    context.user_data['amount'] = amount  # Store the amount temporarily
-    logger.info(f"[USER_DATA] User {user_id} - Stored amount: {amount}")
-
-    keyboard = [
-        [InlineKeyboardButton(f"{category_emojis.get(cat, '')} {cat}", callback_data=cat) for cat in categories[i:i+3]]
-        for i in range(0, len(categories), 3)
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "Select a category for your expense:",
-        reply_markup=reply_markup
-    )
-    logger.info(f"[STATE_CHANGE] User {user_id} -> CATEGORY state")
-    logger.info(f"[CONTEXT] User data after AMOUNT: {context.user_data}")
-    return CATEGORY
 
 # Callback query handler for the inline keyboard.
 async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -305,6 +385,8 @@ def main():
 
         application.add_handler(conv_handler)
         application.add_handler(CommandHandler('dbtest', db_test))
+        application.add_handler(CommandHandler('start', start))
+        application.add_handler(CommandHandler('help', start))
         # Log all updates after handlers, for debugging
         application.add_handler(MessageHandler(filters.ALL, debug_all), group=1)
 

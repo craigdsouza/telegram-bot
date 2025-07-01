@@ -76,7 +76,7 @@ def get_ids_marked_for_deletion(ws):
         return set()
     ids = set()
     for row in values[1:]:
-        if row[9] == 'y':
+        if row[8] == 'y':
             ids.add(int(row[0]))
     return ids
 
@@ -100,7 +100,7 @@ def remove_gsheet_records_marked_for_deletion(ws):
     """
     values = ws.get_all_values()
     for i, row in enumerate(values[1:], start=2): # start from 2nd row
-        if row[9] == 'y':
+        if row[8] == 'y':
             ws.delete_row(i)
 
 def append_data_to_sheet(ws, rows):

@@ -123,94 +123,163 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # /add command handler initiates the expense addition conversation.
 async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Initiate the expense addition conversation."""
+    user = update.effective_user
+    logger.info(f"[ADD_START] User {user.id} starting expense addition")
+    
     # Ensure user is registered
     db_user = await ensure_user_registered(update, context)
     if not db_user:
+        logger.error(f"[ADD_START] Failed to register user {user.id}")
         return ConversationHandler.END
         
     # Store user_id in context for later use
     context.user_data['user_id'] = db_user['id']
-    logger.info(f"User {user.id} registered with user_id {db_user['id']}")
+    logger.info(f"[ADD_START] User {user.id} registered with user_id {db_user['id']}")
     
-    await update.message.reply_text(
-        "💰 Enter the amount spent:",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    return AMOUNT
+    try:
+        await update.message.reply_text(
+            "💰 Enter the amount spent:",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        logger.info(f"[ADD_START] Prompted user {user.id} for amount")
+        return AMOUNT
+    except Exception as e:
+        logger.error(f"[ADD_START] Error in add_expense_start: {e}")
+        await update.message.reply_text("❌ An error occurred. Please try again.")
+        return ConversationHandler.END
 
 # Handler for receiving the amount.
 async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle the user input for amount."""
+    user = update.effective_user
+    logger.info(f"[AMOUNT] User {user.id} entered amount: {update.message.text}")
+    
     try:
         # Ensure user is registered (in case they bypassed /start)
         if 'user_id' not in context.user_data:
+            logger.info(f"[AMOUNT] User {user.id} - No user_id in context, ensuring registration")
             db_user = await ensure_user_registered(update, context)
             if not db_user:
+                logger.error(f"[AMOUNT] User {user.id} - Failed to register user")
                 return ConversationHandler.END
             context.user_data['user_id'] = db_user['id']
+            logger.info(f"[AMOUNT] User {user.id} - Registered with user_id: {db_user['id']}")
         
         # Store the amount in context
         amount_str = update.message.text.strip()
-        amount = float(amount_str)
+        logger.info(f"[AMOUNT] User {user.id} - Processing amount: {amount_str}")
+        
+        try:
+            amount = float(amount_str)
+            logger.info(f"[AMOUNT] User {user.id} - Parsed amount: {amount}")
+        except ValueError:
+            logger.error(f"[AMOUNT] User {user.id} - Invalid amount format: {amount_str}")
+            await update.message.reply_text("❌ Please enter a valid number for the amount (e.g., 100 or 50.50):")
+            return AMOUNT
         
         if amount <= 0:
+            logger.warning(f"[AMOUNT] User {user.id} - Amount not greater than 0: {amount}")
             await update.message.reply_text("❌ Amount must be greater than 0. Please try again:")
             return AMOUNT
             
         context.user_data['amount'] = amount
+        logger.info(f"[AMOUNT] User {user.id} - Stored amount in context: {amount}")
         
-        # Create inline keyboard for categories
+        # Create inline keyboard for categories (2 columns)
         keyboard = []
+        logger.info(f"[AMOUNT] User {user.id} - Creating category keyboard")
+        
         for i in range(0, len(categories), 2):
             row = []
             # Add first category in row
             cat1 = categories[i]
             row.append(InlineKeyboardButton(
                 f"{category_emojis.get(cat1, '📝')} {cat1}", 
-                callback_data=f"cat_{cat1}"
+                callback_data=f"cat_{cat1}"  # Ensure this matches the pattern in the handler
             ))
             # Add second category in row if it exists
             if i + 1 < len(categories):
                 cat2 = categories[i+1]
                 row.append(InlineKeyboardButton(
                     f"{category_emojis.get(cat2, '📝')} {cat2}", 
-                    callback_data=f"cat_{cat2}"
+                    callback_data=f"cat_{cat2}"  # Ensure this matches the pattern in the handler
                 ))
             keyboard.append(row)
+            
+            logger.debug(f"[AMOUNT] Added category row: {[btn.text for btn in row]}")
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        logger.info(f"[AMOUNT] User {user.id} - Sending category selection")
         await update.message.reply_text(
             f"💸 You spent ₹{amount:.2f}. Select a category:",
             reply_markup=reply_markup,
         )
+        
+        logger.info(f"[AMOUNT] User {user.id} - Transitioning to CATEGORY state")
         return CATEGORY
         
-    except ValueError:
-        logger.error("Invalid amount format: %s", update.message.text)
-        await update.message.reply_text("❌ Please enter a valid number for the amount:")
-        return AMOUNT
+    except Exception as e:
+        logger.error(f"[AMOUNT] Error in receive_amount for user {user.id}: {e}", exc_info=True)
+        try:
+            await update.message.reply_text(
+                "❌ An error occurred while processing the amount. Please try again with /add"
+            )
+        except Exception as send_error:
+            logger.error(f"[AMOUNT] Failed to send error message: {send_error}")
+        return ConversationHandler.END
 
 # Callback query handler for the inline keyboard.
 async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle the selected category."""
-    query = update.callback_query
-    await query.answer()
-    user_id = update.effective_user.id
-    category = query.data
-    context.user_data['category'] = category
-    logger.info(f"[STATE] CATEGORY - User {user_id} selected: {category}")
-    logger.info(f"[USER_DATA] User {user_id} - Stored category: {category}")
-    # Prompt for description or allow skipping via button
-    keyboard = [[InlineKeyboardButton("None", callback_data="NONE_DESC")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        f"Category selected: {category}.\nPlease enter a description or click 'None' to skip.",
-        reply_markup=reply_markup
-    )
-    logger.info(f"[STATE_CHANGE] User {user_id} -> DESCRIPTION state")
-    logger.info(f"[CONTEXT] User data after CATEGORY: {context.user_data}")
-    return DESCRIPTION
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = update.effective_user.id
+        
+        # Log the full callback data for debugging
+        logger.info(f"[CATEGORY] User {user_id} - Raw callback data: {query.data}")
+        
+        # Extract category from callback data (remove 'cat_' prefix if present)
+        if query.data.startswith('cat_'):
+            category = query.data[4:]  # Remove 'cat_' prefix
+        else:
+            category = query.data
+            
+        logger.info(f"[CATEGORY] User {user_id} selected category: {category}")
+        
+        # Store the category in user_data
+        context.user_data['category'] = category
+        logger.info(f"[CATEGORY] Stored in context: {context.user_data}")
+        
+        # Create keyboard for description (skip or enter)
+        keyboard = [
+            [InlineKeyboardButton("Skip description", callback_data="NONE_DESC")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Send message with selected category and prompt for description
+        await query.edit_message_text(
+            f"✅ Category: {category}\n\n✏️ Please enter a description or click 'Skip description':",
+            reply_markup=reply_markup
+        )
+        
+        logger.info(f"[CATEGORY] User {user_id} - Prompted for description")
+        return DESCRIPTION
+        
+    except Exception as e:
+        logger.error(f"[CATEGORY] Error in receive_category: {e}", exc_info=True)
+        try:
+            await query.edit_message_text("❌ An error occurred. Please try again with /add")
+        except:
+            try:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="❌ An error occurred. Please try again with /add"
+                )
+            except:
+                pass
+        return ConversationHandler.END
 
 async def receive_description_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle 'None' button click for description."""
@@ -368,19 +437,39 @@ def main():
 
         # Set up the conversation handler with the states AMOUNT, CATEGORY, DESCRIPTION
         conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('add', add_expense_start)],
+            entry_points=[
+                CommandHandler('add', add_expense_start),
+                # Also allow /add to be used as a text command
+                MessageHandler(filters.Regex(r'^/add(?:@\w+)?$'), add_expense_start)
+            ],
             states={
-                AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_amount)],
-                CATEGORY: [CallbackQueryHandler(receive_category)],
+                AMOUNT: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, receive_amount)
+                ],
+                CATEGORY: [
+                    # Handle category selection (callback_data starts with 'cat_')
+                    CallbackQueryHandler(receive_category, pattern=r'^cat_'),
+                    # Handle skip description button
+                    CallbackQueryHandler(receive_description_button, pattern='^NONE_DESC$')
+                ],
                 DESCRIPTION: [
-                    CallbackQueryHandler(receive_description_button, pattern="^NONE_DESC$"),
+                    # Handle skip description button (in case user goes back)
+                    CallbackQueryHandler(receive_description_button, pattern='^NONE_DESC$'),
+                    # Handle text input for description
                     MessageHandler(filters.TEXT & ~filters.COMMAND, receive_description)
                 ]
             },
-            fallbacks=[CommandHandler('cancel', cancel)],
-            per_chat=False, # allows continuing of a conversation in another chat.
-            per_message=False, # allow multiple messages
-            per_user=True, # allow multiple users to have parallel conversations
+            fallbacks=[
+                CommandHandler('cancel', cancel),
+                # Also handle /cancel as a message
+                MessageHandler(filters.Regex(r'^/cancel(?:@\w+)?$'), cancel)
+            ],
+            # Allow the conversation to continue in different chats
+            per_chat=True,
+            # Allow the conversation to be continued in a group (in case the bot is added to a group)
+            per_user=True,
+            # Don't allow overlapping conversations
+            per_message=False
         )
 
         application.add_handler(conv_handler)

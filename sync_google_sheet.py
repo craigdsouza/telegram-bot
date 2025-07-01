@@ -50,6 +50,10 @@ values = ws.get_all_values()
 if not values:
     logger.info("Google Sheet is empty, adding header row")
     ws.append_row(["id","user_id", "date", "amount", "category", "description", "created_at", "mode"])
+else:
+    logger.info("Google Sheet is not empty")
+    logger.info(f"Found this in Google Sheet: {values}")
+
 gsheet_ids = get_existing_sheet_ids(ws)    # Get all IDs from Google Sheet
 logger.info(f"Found {len(gsheet_ids)} existing records in Google Sheet")
 
@@ -68,7 +72,7 @@ if deleted_ids:
 if gsheet_ids:
     last_id = max(gsheet_ids)
     new_rows = fetch_new_entries(conn, last_id)
-    logger.info(f"Found {len(new_rows)} new rows")
+    logger.info(f"Found {len(new_rows)} new rows after last ID: {last_id}")
 else:
     new_rows = fetch_new_entries(conn)
     logger.info(f"Found {len(new_rows)} new rows")
@@ -76,6 +80,7 @@ cur.close()
 conn.close()
 
 # Append only new rows
-logger.info(f"Attempting to sync {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
-append_data_to_sheet(ws, new_rows)
-logger.info(f"Synced {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
+if new_rows:
+    logger.info(f"Attempting to sync {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
+    append_data_to_sheet(ws, new_rows)
+    logger.info(f"Synced {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")

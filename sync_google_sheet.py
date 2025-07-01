@@ -61,29 +61,46 @@ cur.execute("SELECT id FROM expenses")
 db_ids = {row[0] for row in cur.fetchall()}   # Get all IDs from Postgres DB
 logger.info(f"Found {len(db_ids)} existing records in Postgres DB")
 
-# Remove records deleted from Google Sheet
-deleted_ids = db_ids - gsheet_ids           # Find IDs that exist in Postgres DB but not in Google Sheet
-if deleted_ids:
-    logger.info(f"Found {len(deleted_ids)} deleted records in Postgres DB with IDs: {deleted_ids}")
-    remove_deleted_records(ws, deleted_ids)
-    logger.info(f"Removed {len(deleted_ids)} deleted records from Google Sheet with IDs: {deleted_ids}")
-
-# Query new rows in Postgres DB by id since last_id from Google Sheet
-if gsheet_ids:
-    last_id = max(gsheet_ids)
-    new_rows = fetch_new_entries(conn, last_id)
-    logger.info(f"Found {len(new_rows)} new rows after last ID: {last_id}")
-else:
+# First sync
+if len(gsheet_ids)==0:
+    logger.info("Google Sheet has no data, adding data from Postgres")
+    
+    # Query all rows in Postgres DB
     new_rows = fetch_new_entries(conn)
-    logger.info(f"Found {len(new_rows)} new rows")
-cur.close()
-conn.close()
+    logger.info(f"Found {len(new_rows)} rows in Postgres DB")
+    cur.close()
+    conn.close()
 
-# Append to Google Sheet only new rows after last_id
-if new_rows:
-    logger.info(f"Attempting to sync {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
-    append_data_to_sheet(ws, new_rows)
-    logger.info(f"Synced {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
+    # Append to Google Sheet only new rows after last_id
+    if len(new_rows)>0:
+        logger.info(f"Attempting to sync {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
+        append_data_to_sheet(new_rows)
+        logger.info(f"Synced {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
+else:
+    logger.info("Google Sheet has data, syncing changes")
+    # Remove records deleted from Google Sheet
+    deleted_ids = db_ids - gsheet_ids           # Find IDs that exist in Postgres DB but not in Google Sheet
+    if deleted_ids:
+        logger.info(f"Found {len(deleted_ids)} deleted records in Postgres DB with IDs: {deleted_ids}")
+        remove_deleted_records(deleted_ids)
+        logger.info(f"Removed {len(deleted_ids)} deleted records from Google Sheet with IDs: {deleted_ids}")
+    
+    # Query new rows in Postgres DB by id since last_id from Google Sheet
+    if gsheet_ids:
+        last_id = max(gsheet_ids)
+        new_rows = fetch_new_entries(conn, last_id)
+        logger.info(f"Found {len(new_rows)} new rows after last ID: {last_id}")
+    else:
+        new_rows = fetch_new_entries(conn)
+        logger.info(f"Found {len(new_rows)} new rows")
+    cur.close()
+    conn.close()
+
+    # Append to Google Sheet only new rows after last_id
+    if len(new_rows)>0:
+        logger.info(f"Attempting to sync {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
+        append_data_to_sheet(new_rows)
+        logger.info(f"Synced {len(new_rows)} new rows to Google Sheet with IDs: {new_rows}")
 
 # # Read existing IDs from Google Sheet AND Postgres DB
 # values = ws.get_all_values()

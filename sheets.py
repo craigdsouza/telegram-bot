@@ -114,6 +114,7 @@ def append_data_to_sheet(ws, rows):
             # Handle dictionary format
             ws.append_row([
                 row['id'],
+                row['user_id'],
                 row['date'].isoformat() if hasattr(row['date'], 'isoformat') else row['date'],
                 float(row['amount']),
                 row['category'],
@@ -121,9 +122,10 @@ def append_data_to_sheet(ws, rows):
             ])
         else:
             # Handle tuple format (legacy)
-            id_val, date_val, amount_val, category, description = row
+            id_val, user_id, date_val, amount_val, category, description = row
             ws.append_row([
                 id_val,
+                user_id,
                 date_val.isoformat() if hasattr(date_val, 'isoformat') else date_val,
                 float(amount_val),
                 category,

@@ -114,13 +114,13 @@ def fetch_new_entries(conn, last_id=None):
     cur = conn.cursor()
     if last_id:
         cur.execute(
-            "SELECT id, date, amount, category, description"
+            "SELECT id, user_id, date, amount, category, description"
             " FROM expenses WHERE id > %s ORDER BY id",
             (last_id,)
         )
     else:
         cur.execute(
-            "SELECT id, date, amount, category, description"
+            "SELECT id, user_id, date, amount, category, description"
             " FROM expenses ORDER BY id"
         )
     rows = cur.fetchall()

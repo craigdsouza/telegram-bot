@@ -5,6 +5,7 @@ Utility functions to sync Postgres 'expenses' table with a Google Sheet.
 """
 import os
 import json
+import time
 import base64
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -88,6 +89,7 @@ def append_data_to_sheet(ws, rows):
     rows can be a list of dictionaries or a list of tuples.
     """
     for row in rows:
+        time.sleep(0.2)
         if isinstance(row, dict):
             # Handle dictionary format
             ws.append_row([

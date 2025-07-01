@@ -3,9 +3,10 @@
 # Mapping of expense categories to emojis
 category_emojis = {
     "Groceries": "🛒",
-    "Prepared Food": "🍱",
+    "Ordering In": "🍱",
+    "Eating out": "🍴",
     "Transport": "🚌",
-    "Household Items": "🍽️",
+    "Household Items": "🏠",
     "Utilities": "💡",
     "Health": "💊",
     "Capex": "🏗️",
@@ -17,6 +18,9 @@ category_emojis = {
     "Wedding": "💍",
     "Learning": "📚",
     "Other": "❓",
+    "Memberships": "🏆",
+    "Card Fees": "💳",
+    "Transfers": "🔄",
     "Test": "🧪",
     "Rent": "🏠",
     "Work": "💼",

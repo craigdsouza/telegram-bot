@@ -7,6 +7,8 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 from data import db
+from handlers.conversation import build_summary_message
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
@@ -79,4 +81,15 @@ async def db_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def debug_all(update, context):
     """Debug handler to log all updates."""
-    logger.info("📥 GOT UPDATE: %s", update) 
+    logger.info("📥 GOT UPDATE: %s", update)
+
+
+async def summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send the monthly summary to the user."""
+    today = date.today()
+    # Use dummy values for amount/category/description, only the month/year matter
+    msg = build_summary_message(amount=0, category='', description='')
+    if hasattr(update, "message") and update.message:
+        await update.message.reply_text(msg)
+    elif hasattr(update, "callback_query") and update.callback_query:
+        await update.callback_query.edit_message_text(msg) 

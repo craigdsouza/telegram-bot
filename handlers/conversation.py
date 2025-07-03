@@ -181,20 +181,17 @@ async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def _save_expense_and_show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE, description: str) -> int:
-    """Common logic for saving expense and showing summary."""
+    """Common logic for saving expense and showing confirmation only."""
     amount = context.user_data['amount']
     category = context.user_data['category']
     today = date.today()
-    
     # Get the user's primary key from context (set in add_expense_start)
     user_id = context.user_data.get('user_id')
     if not user_id:
         logger.error(f"[ERROR] User {update.effective_user.id} - No user_id in context")
         await update.message.reply_text("❌ Error: User not properly registered. Please try /start again.")
         return ConversationHandler.END
-        
     try:
-        # Pass the user's primary key to add_expense
         db.add_expense(today, amount, category, description, user_id=user_id)
         logger.info(
             "[DB] Inserted expense in Postgres - User ID: %s, Date: %s, Amount: %s, Category: %s, Description: %s",
@@ -206,21 +203,20 @@ async def _save_expense_and_show_summary(update: Update, context: ContextTypes.D
             "❌ Failed to save expense in Postgres. Try again later."
         )
         return ConversationHandler.END
-    
-    # Send summary
+    # Send simple confirmation only
     try:
-        msg = build_summary_message(amount, category, description)
+        msg = f"Expense recorded: {amount} units in {category}."
         if hasattr(update, "message") and update.message:
             await update.message.reply_text(msg)
         elif hasattr(update, "callback_query") and update.callback_query:
             await update.callback_query.edit_message_text(msg)
         logger.info(f"[SUCCESS] User {user_id} - Expense recorded successfully")
     except Exception as e:
-        logger.exception(f"[ERROR] User {user_id} - Failed to send summary message: {e}")
+        logger.exception(f"[ERROR] User {user_id} - Failed to send confirmation message: {e}")
         if hasattr(update, "message") and update.message:
-            await update.message.reply_text("❌ Failed to send summary message. Try again later.")
+            await update.message.reply_text("❌ Failed to send confirmation message. Try again later.")
         elif hasattr(update, "callback_query") and update.callback_query:
-            await update.callback_query.edit_message_text("❌ Failed to send summary message. Try again later.")
+            await update.callback_query.edit_message_text("❌ Failed to send confirmation message. Try again later.")
     finally:
         logger.info(f"[CONV_END] User {user_id} - Conversation completed successfully")
         logger.info(f"[CONTEXT] Final user data: {context.user_data}")
@@ -283,9 +279,7 @@ def build_summary_message(amount, category, description):
     # ASCII separator
     sep_line = "-" * TOTAL_WIDTH
 
-    header = f"Expense recorded: {amount} units in {category} ({description}).\n\nSummary for {today.year}/{today.month:02}"
-    
-    lines = ["```", header, sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
+    lines = ["```", sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
 
     # Sort categories by descending expense
     sorted_items = sorted(totals.items(), key=lambda kv: kv[1], reverse=True)

@@ -22,7 +22,7 @@ from telegram.ext import (
 # Import our modular components
 from utils.logging_config import setup_logging
 from utils.health_server import start_health_server
-from handlers.user import start, db_test, debug_all
+from handlers.user import start, db_test, debug_all, summary
 from handlers.conversation import (
     add_expense_start,
     receive_amount,
@@ -101,6 +101,7 @@ def setup_handlers(application):
     application.add_handler(CommandHandler('dbtest', db_test))
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', start))
+    application.add_handler(CommandHandler('summary', summary))
     
     # Log all updates after handlers, for debugging
     application.add_handler(MessageHandler(filters.ALL, debug_all), group=1)

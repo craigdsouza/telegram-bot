@@ -6,34 +6,33 @@ from datetime import date
 from typing import List, Tuple, Dict, Any, Optional
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
-from crypto_utils import ExpenseEncryptor
 
-# Enable logging
-logging.basicConfig(
-    filename='db_encrypted.log',
-    filemode='a',
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+# # Enable logging
+# logging.basicConfig(
+#     filename='db_encrypted.log',
+#     filemode='a',
+#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+#     level=logging.INFO
+# )
 logger = logging.getLogger(__name__)
 
-# Send logs to console as well
-def _enable_console_logging():
-    console_handler = logging.StreamHandler() # send logs to console
-    console_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+# # Send logs to console as well
+# def _enable_console_logging():
+#     console_handler = logging.StreamHandler() # send logs to console
+#     console_handler.setLevel(logging.INFO)
+#     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#     console_handler.setFormatter(formatter)
+#     logger.addHandler(console_handler)
 
-_enable_console_logging()
+# _enable_console_logging()
 
 # Load environment variables
 load_dotenv()
 
 def get_connection():
-    url = os.getenv("DATABASE_URL")
+    url = os.getenv("DATABASE_PUBLIC_URL")
     if not url:
-        raise RuntimeError("DATABASE_URL not set")
+        raise RuntimeError("DATABASE_PUBLIC_URL not set")
     # psycopg2 accepts a URL directly
     return psycopg2.connect(url)
 
@@ -42,6 +41,7 @@ def init_db():
     Create the expenses table if it doesn't exist.
     """
     conn = get_connection()
+    logger.info("Creating expenses table if it doesn't exist...")
     with conn:
         with conn.cursor() as cur:
             cur.execute("""

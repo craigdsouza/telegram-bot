@@ -1,126 +1,147 @@
 # Telegram Expense Bot - User Experience Flows
 
-## 1. First-Time Setup Flow
+## Current Implementation (as of 3rd July, 2025)
+
+### 1. First-Time User Flow
 
 ```
 👤 User starts bot for the first time
-└─ 🤖 "Welcome to Expense Tracker! 🔒"
-   └─ "Let's set up your secure passphrase to protect your financial data."
-      └─ "Please create a strong passphrase (min 12 characters):"
-         └─ *User enters passphrase*
-            └─ 🔄 "Please confirm your passphrase:"
-               └─ *User re-enters passphrase*
-                  └─ 🔑 "Generating your secure keys..."
-                     └─ 📝 "IMPORTANT: Save this recovery code in a safe place:"
-                        └─ 🏷  "RECOVERY-CODE-HERE-123"
-                           └─ "You'll need this if you forget your passphrase!"
-                              └─ ✅ "Setup complete! Your data is now protected."
-                                 └─ "Type /help to see available commands."
+└─ 🤖 "👋 Welcome, [Name]!"
+   └─ "I'm your personal expense tracker. Here's what you can do:"
+      └─ "• /add - Add a new expense"
+         └─ "• /summary - View monthly summary"
+            └─ "• /help - Show available commands"
+               └─ *User is automatically registered in database*
 ```
 
-## 2. Regular Login Flow
-
-```
-👤 User starts bot after session expired
-└─ 🔒 "Welcome back! Your session has expired."
-   └─ "Please enter your passphrase to continue:"
-      └─ *User enters passphrase*
-         ├─ ✅ "Authentication successful!"
-         │  └─ *Shows main menu*
-         └─ ❌ "Incorrect passphrase. Please try again:"
-            └─ *User retries or selects 'Forgot passphrase'*
-```
-
-## 3. Adding an Expense
+### 2. Adding an Expense Flow
 
 ```
 👤 User types /add
-└─ 💰 "How much did you spend? (e.g., 15.50)"
-   └─ *User enters amount*
-      └─ 🏷 "Select a category:"
-         └─ *Shows inline keyboard with categories*
-            └─ *User selects category*
-               └─ 📝 "Add a description (or /skip):"
-                  └─ *User enters description or skips*
-                     └─ 💾 "Saving expense..."
-                        └─ ✅ "Expense added!"
-                           └─ *Shows monthly summary*
+└─ 💰 "Enter the amount spent:"
+   └─ *User enters amount (e.g., "50.25")*
+      └─ 💸 "You spent ₹50.25. Select a category:"
+         └─ *Shows inline keyboard with 23 categories*
+            └─ *User selects category (e.g., "🍱 Ordering in")*
+               └─ ✅ "Category: Ordering in"
+                  └─ "✏️ Please enter a description or click 'Skip description':"
+                     └─ *User enters description or clicks skip*
+                        └─ 💾 *Saves to PostgreSQL database*
+                           └─ ✅ *Shows monthly summary with all categories*
 ```
 
-## 4. Viewing Monthly Summary
+### 3. Monthly Summary Display
 
 ```
-👤 User types /summary
-└─ 📊 "June 2025 Expense Summary"
-   └─ "Total Spent: $1,234.56"
-      └─ "By Category:"
-          ├─ 🍔 Food: $400.00 (32%)
-          ├─ 🚌 Transport: $300.00 (24%)
-          ├─ 🏠 Rent: $400.00 (32%)
-          └─ 🛒 Shopping: $134.56 (11%)
-          
-          ────────────────
-          Total: $1,234.56
-          
-          "View detailed report: /details"
+📊 *After adding expense, shows:*
+└─ "Expense recorded: 50.25 units in Ordering in (Lunch)."
+
+   └─ "Summary for 2025/01"
+      └─ "────────────────────────────────"
+         └─ "Category              Total"
+            └─ "────────────────────────────────"
+               └─ "🍱 Ordering in        50"
+                  └─ "🛒 Groceries        200"
+                  └─ "🚌 Transport        150"
+                  └─ "💡 Utilities        100"
+                  └─ "❓ Other              0"
+                  └─ "────────────────────────────────"
+                     └─ "Grand Total        500"
 ```
 
-## 5. Passphrase Recovery Flow
-
-```
-👤 User selects "Forgot passphrase"
-└─ 🔄 "To reset your passphrase, please enter your recovery code:"
-   └─ *User enters recovery code*
-      ├─ ❌ "Invalid recovery code. Please try again:"
-      └─ ✅ "Code verified! Please enter a new passphrase:"
-         └─ *User enters new passphrase*
-            └─ 🔄 "Please confirm your new passphrase:"
-               └─ *User confirms*
-                  └─ 🔑 "Generating new keys..."
-                     └─ 📝 "Your NEW recovery code (save this!):"
-                        └─ 🏷  "NEW-RECOVERY-CODE-456"
-                           └─ ✅ "Passphrase updated successfully!"
-```
-
-## 6. Session Management
-
-### Automatic Session Expiry
-```
-👤 User returns after 24h of inactivity
-└─ ⏳ "Your session has expired for security."
-   └─ "Please enter your passphrase to continue:"
-      └─ *Continues to login flow*
-```
-
-### Manual Lock
-```
-👤 User types /lock
-└─ 🔒 "Session locked!"
-   └─ "Enter your passphrase to continue:"
-      └─ *Continues to login flow*
-```
-
-## 7. Help Command
+### 4. Available Commands
 
 ```
 👤 User types /help
 └─ 📚 *Available Commands:*
-   ├─ /add - Record a new expense
-   ├─ /summary - View monthly summary
-   ├─ /details - Detailed expense report
-   ├─ /categories - Manage categories
-   ├─ /export - Export your data
-   ├─ /lock - Lock your session
+   ├─ /add - Add a new expense
+   ├─ /summary - View monthly summary (not implemented yet)
    ├─ /help - Show this help
-   └─ /feedback - Send us your thoughts
+   ├─ /start - Welcome message
+   ├─ /cancel - Cancel current conversation
+   └─ /dbtest - Test database connection
 ```
+
+### 5. Category Selection
+
+The bot offers 23 predefined categories with emojis:
+- 🛒 Groceries
+- 🍱 Ordering in
+- 🍴 Eating out
+- 🚌 Transport
+- 🏠 Household items
+- 💡 Utilities
+- 💊 Health
+- 🏗️ Capex
+- 🎁 Gifts
+- 👗 Clothes
+- 🛁 Self care
+- 🎬 Entertainment
+- ✈️ Trips
+- 💍 Wedding
+- 📚 Learning
+- ❓ Other
+- 🏆 Memberships
+- 💳 Card fees
+- 🔄 Transfers
+- 🧪 Test
+- 🏠 Rent
+- 💼 Work
+- 💰 Investments
+
+### 6. Error Handling
+
+```
+❌ *Common error scenarios:*
+├─ Invalid amount format
+│  └─ "Please enter a valid number for the amount (e.g., 100 or 50.50):"
+├─ Amount <= 0
+│  └─ "Amount must be greater than 0. Please try again:"
+├─ Database connection issues
+│  └─ "❌ Failed to save expense. Try again later."
+└─ User registration issues
+   └─ "❌ Sorry, there was an error setting up your account. Please try again."
+```
+
+## Technical Implementation Details
+
+### Database Schema
+- **expenses table**: id, date, amount, category, description, user_id
+- **users table**: id, telegram_user_id, first_name, last_name, created_at, last_active
+
+### Data Flow
+1. User sends `/add` command
+2. Bot prompts for amount
+3. User enters amount
+4. Bot shows category selection keyboard
+5. User selects category
+6. Bot prompts for description
+7. User enters description or skips
+8. Data saved to PostgreSQL
+9. Monthly summary displayed
+
+### Integration Features
+- **Google Sheets Sync**: Bidirectional sync with Google Sheets
+- **Web Dashboard**: Simple Flask web interface for viewing expenses
+- **Multi-user Support**: Each user has their own expense records
+
+## Planned Features (Not Yet Implemented)
+
+Based on ENHANCEMENT_PLAN.md, future features include:
+- Voice input support
+- Receipt processing with OCR
+- Smart category suggestions
+- Budget tracking
+- Multi-currency support
+- Enhanced reporting
+- Quick-add buttons
+- Inline expense editing
 
 ## Security Notes
 
-- 🔒 All data is encrypted with your passphrase
-- 🔑 Passphrase is never stored on our servers
-- ⏳ Sessions expire after 24h of inactivity
-- 📝 Always save your recovery code in a safe place
+- 🔒 User data is stored in PostgreSQL database
+- 👤 Each user has their own expense records
+- 📊 Data can be exported to Google Sheets
+- 🌐 Simple web dashboard available for viewing
 
 ---
-*Last Updated: June 26, 2025*

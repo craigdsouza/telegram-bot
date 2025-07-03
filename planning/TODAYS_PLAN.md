@@ -1,0 +1,5 @@
+- Fix issue with conversation state - Si not receiving a response
+- Fix issue with monthly summary
+- Upload complete expenses to postgres
+- Check sync of postgres > g sheets
+- Code for sync of g sheets > postgres

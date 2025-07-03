@@ -258,10 +258,10 @@ def create_category_keyboard():
     return keyboard
 
 
-def build_summary_message(amount, category, description):
-    """Build a formatted summary message for the current month."""
+def build_summary_message(amount, category, description, user_id):
+    """Build a formatted summary message for the current month for a specific user."""
     today = date.today()
-    rows = db.get_monthly_summary(today.year, today.month)
+    rows = db.get_monthly_summary(today.year, today.month, user_id=user_id)
     logger.info(f"[SUMMARY] Raw rows from DB: {rows}")
 
     # Include zero totals for categories without entries

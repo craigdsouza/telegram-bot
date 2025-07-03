@@ -7,24 +7,7 @@ from typing import List, Tuple, Dict, Any, Optional
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
 
-# # Enable logging
-# logging.basicConfig(
-#     filename='db_encrypted.log',
-#     filemode='a',
-#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-#     level=logging.INFO
-# )
 logger = logging.getLogger(__name__)
-
-# # Send logs to console as well
-# def _enable_console_logging():
-#     console_handler = logging.StreamHandler() # send logs to console
-#     console_handler.setLevel(logging.INFO)
-#     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-#     console_handler.setFormatter(formatter)
-#     logger.addHandler(console_handler)
-
-# _enable_console_logging()
 
 # Load environment variables
 load_dotenv()
@@ -84,17 +67,19 @@ def add_expense(date, amount, category, description=None, user_id=None):
         if conn and not conn.closed:
             conn.close()
 
-def get_monthly_summary(year: int, month: int) -> List[Tuple[str, float]]:
+def get_monthly_summary(year: int, month: int, user_id: int) -> List[Tuple[str, float]]:
     """
-    Returns a list of (category, total_amount) for the given year/month.
+    Returns a list of (category, total_amount) for the given year/month, filtered by user.
     """
+    
     sql = """
-      SELECT category, SUM(amount) AS total
-      FROM expenses
-      WHERE date >= %s AND date < %s
-      GROUP BY category
-      ORDER BY category;
+        SELECT category, SUM(amount) AS total
+        FROM expenses
+        WHERE date >= %s AND date < %s AND user_id = %s
+        GROUP BY category
+        ORDER BY category;
     """
+    
     start = date(year, month, 1)
     # advance one month safely
     if month == 12:
@@ -103,7 +88,7 @@ def get_monthly_summary(year: int, month: int) -> List[Tuple[str, float]]:
         end = date(year, month+1, 1)
     conn = get_connection()
     with conn, conn.cursor() as cur:
-        cur.execute(sql, (start, end))
+        cur.execute(sql, (start, end, user_id))
         return cur.fetchall()  # list of (category, total)
 
 def fetch_new_entries(conn, last_id=None):

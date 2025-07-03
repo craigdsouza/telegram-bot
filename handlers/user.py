@@ -87,8 +87,19 @@ async def debug_all(update, context):
 async def summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send the monthly summary to the user."""
     today = date.today()
-    # Use dummy values for amount/category/description, only the month/year matter
-    msg = build_summary_message(amount=0, category='', description='')
+    user = update.effective_user
+    # Try to get the user's database ID
+    db_user = db.get_user_by_telegram_id(user.id)  # pass telegram_user_id to get local user_id
+    if not db_user:
+        # Register the user if not found
+        from handlers.user import ensure_user_registered
+        db_user = await ensure_user_registered(update, context)
+        if not db_user:
+            # Registration failed, abort
+            logger.error(f"Failed to register user {user.id} in database")
+            return
+    user_id = db_user['id']
+    msg = build_summary_message(amount=0, category='', description='', user_id=user_id)
     if hasattr(update, "message") and update.message:
         await update.message.reply_text(msg)
     elif hasattr(update, "callback_query") and update.callback_query:

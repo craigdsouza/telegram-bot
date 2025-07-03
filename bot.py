@@ -18,6 +18,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+import logging
 
 # Import our modular components
 from utils.logging_config import setup_logging
@@ -45,6 +46,7 @@ logger.info("\n")
 # Load environment variables
 load_dotenv()
 
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 def _handle_sigterm(signum, frame):
     """Handle SIGTERM signal for graceful shutdown."""

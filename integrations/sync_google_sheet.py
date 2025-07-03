@@ -2,7 +2,7 @@ import os, json, base64
 from dotenv import load_dotenv  # load local .env
 import psycopg2
 import logging
-from sheets import (
+from integrations.sheets import (
     authenticate_google_sheets,
     get_or_create_worksheet,
     get_existing_sheet_ids,
@@ -11,7 +11,7 @@ from sheets import (
     remove_gsheet_records_marked_for_deletion,
     append_data_to_sheet
 )
-from db import fetch_new_entries
+from data.db import fetch_new_entries
 from gspread.exceptions import WorksheetNotFound  # for tab creation
 
 # Enable logging

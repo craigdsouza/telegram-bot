@@ -5,7 +5,7 @@ def run_bot():
     subprocess.Popen(["python", "bot.py"])
 
 def run_export():
-    subprocess.run(["python", "sync_google_sheet.py"])
+    subprocess.run(["python", "integrations/sync_google_sheet.py"])
 
 if __name__ == "__main__":
     run_bot()  # Start the bot

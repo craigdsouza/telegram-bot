@@ -5,3 +5,5 @@ psycopg2-binary
 gspread
 oauth2client
 cryptography>=41.0.0
+apscheduler
+pytz

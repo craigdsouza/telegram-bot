@@ -36,6 +36,7 @@ from handlers.conversation import (
     DESCRIPTION
 )
 from data import db
+from handlers.reminder import reminder_start, receive_reminder_time, cancel as reminder_cancel, REMINDER_TIME
 
 # Set up logging
 logger = setup_logging()
@@ -54,7 +55,7 @@ def _handle_sigterm(signum, frame):
     sys.exit(0)
 
 
-def create_conversation_handler():
+def create_add_expense_conversation_handler():
     """Create and configure the conversation handler for expense addition."""
     return ConversationHandler(
         entry_points=[
@@ -92,12 +93,29 @@ def create_conversation_handler():
         per_message=False
     )
 
+def create_reminder_conversation_handler():
+    """Create and configure the conversation handler for reminder setup."""
+    return ConversationHandler(
+        entry_points=[CommandHandler('reminder', reminder_start)],
+        states={
+            REMINDER_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_reminder_time)],
+        },
+        fallbacks=[CommandHandler('cancel', reminder_cancel)],
+        per_chat=True,
+        per_user=True,
+        per_message=False,
+    )
+    
 
 def setup_handlers(application):
     """Set up all bot handlers."""
     # Add conversation handler for expense addition
-    conv_handler = create_conversation_handler()
-    application.add_handler(conv_handler)
+    add_expense_conv_handler = create_add_expense_conversation_handler()
+    application.add_handler(add_expense_conv_handler)
+    
+    # Add reminder conversation handler
+    reminder_conv_handler = create_reminder_conversation_handler()
+    application.add_handler(reminder_conv_handler)
     
     # Add basic command handlers
     application.add_handler(CommandHandler('dbtest', db_test))

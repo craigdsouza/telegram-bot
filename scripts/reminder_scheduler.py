@@ -67,36 +67,33 @@ def send_reminder(telegram_user_id):
 
 def schedule_all_reminders(scheduler):
     logger.info("Scheduling all reminders")
-    # print("Scheduling all reminders")
     users = fetch_reminder_users()
     now_utc = datetime.now(pytz.utc).replace(second=0, microsecond=0)
-    # print(f"Now UTC: {now_utc}")
     for telegram_user_id, reminder_time, reminder_timezone in users:
         # Parse time and timezone
         if isinstance(reminder_time, str):
             reminder_time = dt_time.fromisoformat(reminder_time)
         try:
             tz = pytz.timezone(reminder_timezone)
-            # print(f"Timezone: {tz}")
+            # logger.info(f"Timezone using tz name: {tz}")
         except Exception:
             # fallback to UTC offset if tz name fails
             if reminder_timezone.startswith(('+', '-')):
                 offset_minutes = parse_utc_offset(reminder_timezone)
                 tz = pytz.FixedOffset(offset_minutes)
-                # print(f"Fallback timezone: {tz}")
+                # logger.info(f"Fallback timezone using offset: {tz}")
             else:
                 raise
         # Next reminder datetime in user's local time
         now_local = datetime.now(tz)
-        # print(f"Now local: {now_local}")
+        # logger.info(f"Now local: {now_local}")
         next_reminder_local = now_local.replace(hour=reminder_time.hour, minute=reminder_time.minute, second=0, microsecond=0)
-        # print(f"Next reminder local: {next_reminder_local}")
         if next_reminder_local < now_local:
             next_reminder_local += timedelta(days=1)
-        # print(f"Next reminder local: {next_reminder_local}")
+        # logger.info(f"Next reminder local: {next_reminder_local}")
         # Convert to UTC
         next_reminder_utc = next_reminder_local.astimezone(pytz.utc)
-        # print(f"Next reminder UTC: {next_reminder_utc}")
+        # logger.info(f"Next reminder UTC: {next_reminder_utc}")
         # Schedule the job
         scheduler.add_job(
             send_reminder,
@@ -106,8 +103,7 @@ def schedule_all_reminders(scheduler):
             id=f"reminder_{telegram_user_id}",
             replace_existing=True
         )
-        logger.info(f"Scheduled reminder for {telegram_user_id} at {next_reminder_utc} UTC")
-        # print(f"Scheduled reminder for {telegram_user_id} at {next_reminder_utc} UTC")
+        logger.info(f"Scheduled reminder for {telegram_user_id} at {next_reminder_local}")
 
 def parse_utc_offset(offset_str):
     # offset_str: "+05:30" or "-04:00"
@@ -122,7 +118,6 @@ def parse_utc_offset(offset_str):
 
 if __name__ == "__main__":
     logger.info("Starting reminder scheduler")
-    # print("Starting reminder scheduler")
     scheduler = BackgroundScheduler()
     scheduler.start()
     # Schedule all reminders now, and then every hour to catch updates

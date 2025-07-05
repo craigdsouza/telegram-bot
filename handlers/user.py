@@ -4,7 +4,7 @@ Handles user registration, start command, and basic user operations.
 """
 
 import logging
-from telegram import Update
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from telegram.ext import ContextTypes
 from data import db
 from handlers.conversation import build_summary_message
@@ -103,4 +103,22 @@ async def summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if hasattr(update, "message") and update.message:
         await update.message.reply_text(msg)
     elif hasattr(update, "callback_query") and update.callback_query:
-        await update.callback_query.edit_message_text(msg) 
+        await update.callback_query.edit_message_text(msg)
+
+
+async def app(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a button to open the Telegram Mini App."""
+    mini_app_url = "https://telegram-mini-app-production-8aae.up.railway.app/"
+    user = update.effective_user
+    logger.info(f"/app command received from user {user.id}")
+
+    # Create a keyboard with a Web App button
+    keyboard = [
+        [KeyboardButton(text="Open Expense Mini App", web_app=WebAppInfo(url=mini_app_url))]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+    await update.message.reply_text(
+        "Click the button below to open the Expense Mini App:",
+        reply_markup=reply_markup
+    ) 

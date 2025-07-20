@@ -1,9 +1,11 @@
 # Bot Development Learnings
 
-## Reminder System Debugging: Threads vs Subprocesses
+## Reminder System Debugging: Threads vs Subprocesses and Multiple Bot Instances
 
 ### Problem Statement
 The reminder system was not working on Railway despite the reminder handler successfully setting reminder times. Users could set reminders and see "Reminder set for 21:00 daily for user {telegram_user_id}" in logs, but no actual reminder messages were being sent. Railway logs showed no mention of "Starting reminder scheduler", "Scheduling all reminders", or "Fetched X reminders for users", indicating the reminder scheduler process was not running at all.
+
+Additionally, after fixing the reminder system, new errors emerged: "Conflict: terminated by other getUpdates request; make sure that only one bot instance is running". This indicated multiple bot instances were running simultaneously, causing conflicts in Telegram's update polling mechanism.
 
 ### Root Cause Analysis
 1. **Database Schema Issue**: The reminder scheduler query required BOTH `reminder_time` AND `reminder_timezone` to be set:
@@ -18,6 +20,13 @@ The reminder system was not working on Railway despite the reminder handler succ
        subprocess.Popen(["python", "-m", "scripts.reminder_scheduler"])
    ```
    This subprocess approach was not working properly on Railway's containerized environment.
+
+3. **Multiple Bot Instances Issue**: The deployment setup was causing multiple bot instances to run:
+   - **Procfile** specified `worker: python scheduler.py`
+   - **scheduler.py** started the bot with `subprocess.Popen(["python", "bot.py"])`
+   - This created a subprocess bot instance within the main scheduler process
+   - Railway might also be running `bot.py` directly in some cases
+   - Result: Multiple bot instances polling Telegram simultaneously
 
 ### Hypothesis
 The subprocess approach fails on Railway because:
@@ -43,7 +52,13 @@ Using threading instead of subprocess should work better because:
    - Modified scheduler to use `threading.Thread(target=start_reminder_scheduler, daemon=True)`
    - Exposed `start_reminder_scheduler()` function from reminder_scheduler.py
 
-3. **Enhanced Logging**:
+3. **Consolidated to Single Process**:
+   - Moved reminder scheduler into main bot process using threading
+   - Moved Google Sheets sync into main bot process using threading
+   - Updated Procfile to run `bot.py` directly instead of `scheduler.py`
+   - Eliminated subprocess approach entirely
+
+4. **Enhanced Logging**:
    - Added more detailed logging to track scheduler startup and user discovery
    - Added logging for number of users found with reminders
 
@@ -91,6 +106,8 @@ reminder_thread.start()
 3. **Process vs Thread choice** - For Railway/deployment environments, threading is often more reliable than subprocess
 4. **Comprehensive logging** - Detailed logs are crucial for debugging deployment issues
 5. **Database migrations** - Always create proper migrations for schema changes
+6. **Single process deployment** - Avoid multiple bot instances by consolidating all functionality into one process
+7. **Procfile configuration** - Ensure only one entry point is specified to prevent duplicate bot instances
 
 ### Testing Checklist
 - [x] Deploy changes to Railway

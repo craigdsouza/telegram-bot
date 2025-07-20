@@ -9,6 +9,7 @@ import sys
 import asyncio
 import signal
 import os
+import threading
 from dotenv import load_dotenv
 from telegram.ext import (
     ApplicationBuilder,
@@ -155,6 +156,28 @@ def main():
         # Initialize database
         initialize_database()
         logger.info("Database initialized")
+
+        # Start reminder scheduler in a separate thread
+        from scripts.reminder_scheduler import start_reminder_scheduler
+        reminder_thread = threading.Thread(target=start_reminder_scheduler, daemon=True)
+        reminder_thread.start()
+        logger.info("Reminder scheduler started in thread")
+
+        # Start Google Sheets sync in a separate thread
+        def run_google_sheets_sync():
+            import subprocess
+            import time
+            while True:
+                try:
+                    subprocess.run(["python", "-m", "integrations.sync_google_sheet"], check=True)
+                    logger.info("Google Sheets sync completed")
+                except Exception as e:
+                    logger.error(f"Google Sheets sync failed: {e}")
+                time.sleep(300)  # Run every 5 minutes
+        
+        sync_thread = threading.Thread(target=run_google_sheets_sync, daemon=True)
+        sync_thread.start()
+        logger.info("Google Sheets sync started in thread")
 
         # Fetch and print bot info before polling
         async def print_bot_info(application):

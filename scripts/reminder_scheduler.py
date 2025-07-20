@@ -63,7 +63,19 @@ def send_reminder(telegram_user_id):
         except Exception as e:
             logger.error(f"Failed to send reminder to {telegram_user_id}: {e}")
             # print(f"Failed to send reminder to {telegram_user_id}: {e}")
-    asyncio.run(send())
+    
+    # Create a new event loop for each reminder to avoid AsyncLock issues
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(send())
+    except Exception as e:
+        logger.error(f"Failed to create event loop for reminder to {telegram_user_id}: {e}")
+    finally:
+        try:
+            loop.close()
+        except:
+            pass
 
 def schedule_all_reminders(scheduler):
     logger.info("Scheduling all reminders")
@@ -126,7 +138,9 @@ def start_reminder_scheduler():
     schedule_all_reminders(scheduler)
     from time import sleep
     while True:
-        sleep(3600)
+        sleep(600)  # Sleep for 10 minutes
+        logger.info("Running 10min frequency reminder check")
+        schedule_all_reminders(scheduler)  # Re-schedule to catch new/changed reminders
 
 if __name__ == "__main__":
     start_reminder_scheduler()

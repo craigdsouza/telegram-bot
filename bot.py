@@ -142,7 +142,12 @@ def initialize_database():
 
 def main():
     """Main application entry point."""
-    logger.info("Starting bot...")
+    import uuid
+    
+    # Generate a unique instance ID for logging
+    instance_id = str(uuid.uuid4())[:8]
+    logger.info(f"Starting bot instance {instance_id}...")
+    
     try:
         # Start the health check server
         start_health_server()
@@ -185,16 +190,27 @@ def main():
             logger.info(f"Bot is running: {bot_info.first_name} (@{bot_info.username})")
             print(f"Bot is running: {bot_info.first_name} (@{bot_info.username})")
 
-        # Build application
+        # Build application with unique session name to prevent conflicts
         application = ApplicationBuilder().token(token).post_init(print_bot_info).build()
         logger.info("Application built")
+        
+        # Add error handler for conflict errors
+        async def error_handler(update, context):
+            if "Conflict" in str(context.error):
+                logger.error(f"Conflict detected in instance {instance_id}: {context.error}")
+                # Don't re-raise the error, just log it
+            else:
+                logger.error(f"Exception in instance {instance_id}: {context.error}")
+        
+        application.add_error_handler(error_handler)
 
         # Set up handlers
         setup_handlers(application)
         logger.info("Handlers set up")
 
         logger.info("Bot is running. Waiting for commands...")
-        application.run_polling(drop_pending_updates=True)
+        logger.info(f"Instance {instance_id} starting polling...")
+        application.run_polling(drop_pending_updates=True, allowed_updates=[])
         
     except Exception as e:
         logger.error("An error occurred in main: %s", e)

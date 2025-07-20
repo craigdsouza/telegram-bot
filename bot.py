@@ -197,8 +197,9 @@ def main():
         # Add error handler for conflict errors
         async def error_handler(update, context):
             if "Conflict" in str(context.error):
-                logger.error(f"Conflict detected in instance {instance_id}: {context.error}")
-                # Don't re-raise the error, just log it
+                logger.warning(f"Conflict detected in instance {instance_id}: {context.error}")
+                logger.info(f"Instance {instance_id} will continue running despite conflict")
+                # Don't re-raise the error, just log it and continue
             else:
                 logger.error(f"Exception in instance {instance_id}: {context.error}")
         
@@ -210,7 +211,16 @@ def main():
 
         logger.info("Bot is running. Waiting for commands...")
         logger.info(f"Instance {instance_id} starting polling...")
-        application.run_polling(drop_pending_updates=True, allowed_updates=[])
+        
+        # Use more resilient polling settings
+        application.run_polling(
+            drop_pending_updates=True,
+            allowed_updates=[],
+            read_timeout=30,
+            write_timeout=30,
+            connect_timeout=30,
+            pool_timeout=30
+        )
         
     except Exception as e:
         logger.error("An error occurred in main: %s", e)

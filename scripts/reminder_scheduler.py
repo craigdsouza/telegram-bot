@@ -138,7 +138,7 @@ def start_reminder_scheduler():
     schedule_all_reminders(scheduler)
     from time import sleep
     while True:
-        sleep(600)  # Sleep for 10 minutes
+        sleep(3600)  # Sleep for 10 minutes
         logger.info("Running 10min frequency reminder check")
         schedule_all_reminders(scheduler)  # Re-schedule to catch new/changed reminders
 

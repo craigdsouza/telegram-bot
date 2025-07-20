@@ -68,6 +68,7 @@ def send_reminder(telegram_user_id):
 def schedule_all_reminders(scheduler):
     logger.info("Scheduling all reminders")
     users = fetch_reminder_users()
+    logger.info(f"Found {len(users)} users with reminders set")
     now_utc = datetime.now(pytz.utc).replace(second=0, microsecond=0)
     for telegram_user_id, reminder_time, reminder_timezone in users:
         # Parse time and timezone
@@ -116,7 +117,8 @@ def parse_utc_offset(offset_str):
         total_minutes = -total_minutes
     return total_minutes
 
-if __name__ == "__main__":
+def start_reminder_scheduler():
+    """Start the reminder scheduler in a separate thread."""
     logger.info("Starting reminder scheduler")
     scheduler = BackgroundScheduler()
     scheduler.start()
@@ -125,3 +127,6 @@ if __name__ == "__main__":
     from time import sleep
     while True:
         sleep(3600)
+
+if __name__ == "__main__":
+    start_reminder_scheduler()

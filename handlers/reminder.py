@@ -38,12 +38,12 @@ async def receive_reminder_time(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE users SET reminder_time = %s WHERE id = %s",
-                (time_str, db_user['id'])
+                "UPDATE users SET reminder_time = %s, reminder_timezone = %s WHERE id = %s",
+                (time_str, "+05:30", db_user['id'])
             )
             conn.commit()
-        await update.message.reply_text(f"✅ Reminder set for {time_str} daily!")
-        logger.info(f"Reminder set for {time_str} daily for user {update.effective_user.id}")
+        await update.message.reply_text(f"✅ Reminder set for {time_str} daily (IST)!")
+        logger.info(f"Reminder set for {time_str} daily (Asia/Kolkata) for user {update.effective_user.id}")
     finally:
         conn.close()
     return ConversationHandler.END

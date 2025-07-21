@@ -20,7 +20,8 @@ async def ensure_user_registered(update: Update, context: ContextTypes.DEFAULT_T
         dict: User data if registration was successful, None otherwise
     """
     user = update.effective_user
-    logger.info(f"Ensuring user is registered: {user.id} - {user.first_name} {user.last_name}")
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
+    logger.info(f"[REGISTER] {user_str} - Ensuring user is registered")
     
     try:
         # Get or create the user in the database
@@ -31,17 +32,17 @@ async def ensure_user_registered(update: Update, context: ContextTypes.DEFAULT_T
         )
         
         if not db_user:
-            logger.error(f"Failed to register user {user.id} in database")
+            logger.error(f"[REGISTER] {user_str} - Failed to register in database")
             await update.message.reply_text(
                 "❌ Sorry, there was an error setting up your account. Please try again."
             )
             return None
             
-        logger.info(f"User registered/retrieved: {db_user}")
+        logger.info(f"[REGISTER] {user_str} - Registered/retrieved: {db_user}")
         return db_user
         
     except Exception as e:
-        logger.error(f"Error in ensure_user_registered: {e}")
+        logger.error(f"[REGISTER] {user_str} - Error: {e}")
         await update.message.reply_text(
             "❌ Sorry, there was an error setting up your account. Please try again."
         )
@@ -51,7 +52,8 @@ async def ensure_user_registered(update: Update, context: ContextTypes.DEFAULT_T
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a welcome message when the command /start is issued."""
     user = update.effective_user
-    logger.info(f"Start command received from user {user.id}")
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
+    logger.info(f"[START] {user_str} - Start command received")
     
     # Ensure user is registered
     db_user = await ensure_user_registered(update, context)
@@ -83,13 +85,16 @@ async def db_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def debug_all(update, context):
     """Debug handler to log all updates."""
-    logger.info("📥 GOT UPDATE: %s", update)
+    user = update.effective_user
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
+    logger.info(f"[DEBUG_ALL] {user_str} - Update: %s", update)
 
 
 async def summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send the monthly summary to the user."""
     today = date.today()
     user = update.effective_user
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
     # Try to get the user's database ID
     db_user = db.get_user_by_telegram_id(user.id)  # pass telegram_user_id to get local user_id
     if not db_user:
@@ -98,9 +103,10 @@ async def summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user = await ensure_user_registered(update, context)
         if not db_user:
             # Registration failed, abort
-            logger.error(f"Failed to register user {user.id} in database")
+            logger.error(f"[SUMMARY] {user_str} - Failed to register in database")
             return
     user_id = db_user['id']
+    logger.info(f"[SUMMARY] {user_str} - Generating summary for internal user_id {user_id}")
     msg = build_summary_message(amount=0, category='', description='', user_id=user_id)
     if hasattr(update, "message") and update.message:
         await update.message.reply_text(msg)
@@ -110,9 +116,10 @@ async def summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def app(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a button to open the Telegram Mini App."""
-    mini_app_url = "https://telegram-mini-app-production-8aae.up.railway.app/"
     user = update.effective_user
-    logger.info(f"/app command received from user {user.id}")
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
+    logger.info(f"[APP] {user_str} - /app command received")
+    mini_app_url = "https://telegram-mini-app-production-8aae.up.railway.app/"
 
     # Create a keyboard with a Web App button
     keyboard = [

@@ -19,27 +19,28 @@ AMOUNT, CATEGORY, DESCRIPTION = range(3)
 async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Initiate the expense addition conversation."""
     user = update.effective_user
-    logger.info(f"[ADD_START] User {user.id} starting expense addition")
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
+    logger.info(f"[ADD_START] {user_str} - Starting expense addition")
     
     # Ensure user is registered
     db_user = await ensure_user_registered(update, context)
     if not db_user:
-        logger.error(f"[ADD_START] Failed to register user {user.id}")
+        logger.error(f"[ADD_START] {user_str} - Failed to register user")
         return ConversationHandler.END
         
     # Store user_id in context for later use
     context.user_data['user_id'] = db_user['id']
-    logger.info(f"[ADD_START] User {user.id} registered with user_id {db_user['id']}")
+    logger.info(f"[ADD_START] {user_str} - Registered with user_id {db_user['id']}")
     
     try:
         await update.message.reply_text(
             "💰 Enter the amount spent:",
             reply_markup=ReplyKeyboardRemove(),
         )
-        logger.info(f"[ADD_START] Prompted user {user.id} for amount")
+        logger.info(f"[ADD_START] {user_str} - Prompted for amount")
         return AMOUNT
     except Exception as e:
-        logger.error(f"[ADD_START] Error in add_expense_start: {e}")
+        logger.error(f"[ADD_START] {user_str} - Error: {e}")
         await update.message.reply_text("❌ An error occurred. Please try again.")
         return ConversationHandler.END
 
@@ -47,54 +48,55 @@ async def add_expense_start(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle the user input for amount."""
     user = update.effective_user
-    logger.info(f"[AMOUNT] User {user.id} entered amount: {update.message.text}")
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
+    logger.info(f"[AMOUNT] {user_str} - Entered amount: {update.message.text}")
     
     try:
         # Ensure user is registered (in case they bypassed /start)
         if 'user_id' not in context.user_data:
-            logger.info(f"[AMOUNT] User {user.id} - No user_id in context, ensuring registration")
+            logger.info(f"[AMOUNT] {user_str} - No user_id in context, ensuring registration")
             db_user = await ensure_user_registered(update, context)
             if not db_user:
-                logger.error(f"[AMOUNT] User {user.id} - Failed to register user")
+                logger.error(f"[AMOUNT] {user_str} - Failed to register user")
                 return ConversationHandler.END
             context.user_data['user_id'] = db_user['id']
-            logger.info(f"[AMOUNT] User {user.id} - Registered with user_id: {db_user['id']}")
+            logger.info(f"[AMOUNT] {user_str} - Registered with user_id: {db_user['id']}")
         
         # Store the amount in context
         amount_str = update.message.text.strip()
-        logger.info(f"[AMOUNT] User {user.id} - Processing amount: {amount_str}")
+        logger.info(f"[AMOUNT] {user_str} - Processing amount: {amount_str}")
         
         try:
             amount = float(amount_str)
-            logger.info(f"[AMOUNT] User {user.id} - Parsed amount: {amount}")
+            logger.info(f"[AMOUNT] {user_str} - Parsed amount: {amount}")
         except ValueError:
-            logger.error(f"[AMOUNT] User {user.id} - Invalid amount format: {amount_str}")
+            logger.error(f"[AMOUNT] {user_str} - Invalid amount format: {amount_str}")
             await update.message.reply_text("❌ Please enter a valid number for the amount (e.g., 100 or 50.50):")
             return AMOUNT
         
         if amount <= 0:
-            logger.warning(f"[AMOUNT] User {user.id} - Amount not greater than 0: {amount}")
+            logger.warning(f"[AMOUNT] {user_str} - Amount not greater than 0: {amount}")
             await update.message.reply_text("❌ Amount must be greater than 0. Please try again:")
             return AMOUNT
             
         context.user_data['amount'] = amount
-        logger.info(f"[AMOUNT] User {user.id} - Stored amount in context: {amount}")
+        logger.info(f"[AMOUNT] {user_str} - Stored amount in context: {amount}")
         
         # Create category selection keyboard
         keyboard = create_category_keyboard()
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        logger.info(f"[AMOUNT] User {user.id} - Sending category selection")
+        logger.info(f"[AMOUNT] {user_str} - Sending category selection")
         await update.message.reply_text(
-            f"💸 You spent ₹{amount:.2f}. Select a category:",
+            "Select a category:",
             reply_markup=reply_markup,
         )
         
-        logger.info(f"[AMOUNT] User {user.id} - Transitioning to CATEGORY state")
+        logger.info(f"[AMOUNT] {user_str} - Transitioning to CATEGORY state")
         return CATEGORY
         
     except Exception as e:
-        logger.error(f"[AMOUNT] Error in receive_amount for user {user.id}: {e}", exc_info=True)
+        logger.error(f"[AMOUNT] {user_str} - Error: {e}")
         try:
             await update.message.reply_text(
                 "❌ An error occurred while processing the amount. Please try again with /add"
@@ -109,10 +111,11 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     try:
         query = update.callback_query
         await query.answer()
-        user_id = update.effective_user.id
+        user = update.effective_user
+        user_str = f"User {user.id} ({user.first_name} {user.last_name})"
         
         # Log the full callback data for debugging
-        logger.info(f"[CATEGORY] User {user_id} - Raw callback data: {query.data}")
+        logger.info(f"[CATEGORY] {user_str} - Raw callback data: {query.data}")
         
         # Extract category from callback data (remove 'cat_' prefix if present)
         if query.data.startswith('cat_'):
@@ -120,11 +123,11 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         else:
             category = query.data
             
-        logger.info(f"[CATEGORY] User {user_id} selected category: {category}")
+        logger.info(f"[CATEGORY] {user_str} - Selected category: {category}")
         
         # Store the category in user_data
         context.user_data['category'] = category
-        logger.info(f"[CATEGORY] Stored in context: {context.user_data}")
+        logger.info(f"[CATEGORY] {user_str} - Stored in context: {context.user_data}")
         
         # Create keyboard for description (skip or enter)
         keyboard = [
@@ -138,11 +141,11 @@ async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             reply_markup=reply_markup
         )
         
-        logger.info(f"[CATEGORY] User {user_id} - Prompted for description")
+        logger.info(f"[CATEGORY] {user_str} - Prompted for description")
         return DESCRIPTION
         
     except Exception as e:
-        logger.error(f"[CATEGORY] Error in receive_category: {e}", exc_info=True)
+        logger.error(f"[CATEGORY] {user_str} - Error: {e}")
         try:
             await query.edit_message_text("❌ An error occurred. Please try again with /add")
         except:
@@ -160,22 +163,24 @@ async def receive_description_button(update: Update, context: ContextTypes.DEFAU
     """Handle 'None' button click for description."""
     query = update.callback_query
     await query.answer()
-    user_id = update.effective_user.id
+    user = update.effective_user
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
     description = 'None'
-    logger.info(f"[STATE] DESCRIPTION - User {user_id} clicked 'None' for description")
+    logger.info(f"[STATE] DESCRIPTION - {user_str} clicked 'None' for description")
     
     return await _save_expense_and_show_summary(update, context, description)
 
 
 async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle user input for description."""
-    user_id = update.effective_user.id
+    user = update.effective_user
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
     description = update.message.text.strip()
-    logger.info(f"[STATE] DESCRIPTION - User {user_id} entered description: {description}")
+    logger.info(f"[STATE] DESCRIPTION - {user_str} entered description: {description}")
     
     if description.lower() == 'none' or not description:
         description = 'None'
-        logger.info(f"[PROCESSING] User {user_id} - Using default 'None' description")
+        logger.info(f"[PROCESSING] {user_str} - Using default 'None' description")
     
     return await _save_expense_and_show_summary(update, context, description)
 
@@ -225,8 +230,9 @@ async def _save_expense_and_show_summary(update: Update, context: ContextTypes.D
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancellation handler in case the user wishes to abort."""
-    user_id = update.effective_user.id
-    logger.info(f"[CONV_END] User {user_id} - Conversation canceled")
+    user = update.effective_user
+    user_str = f"User {user.id} ({user.first_name} {user.last_name})"
+    logger.info(f"[CONV_END] {user_str} - Conversation canceled")
     logger.info(f"[CONTEXT] Final user data: {context.user_data}")
     await update.message.reply_text("Expense addition canceled.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END

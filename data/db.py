@@ -200,3 +200,109 @@ def get_user_by_telegram_id(telegram_user_id: int) -> dict:
     finally:
         if conn and not conn.closed:
             conn.close()
+
+def get_family_members(user_id: int) -> List[int]:
+    """
+    Get all family member user IDs for a given user.
+    Returns a list of user IDs including the user themselves.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Get the family group for this user
+            cur.execute(
+                """
+                SELECT family FROM users WHERE id = %s
+                """,
+                (user_id,)
+            )
+            result = cur.fetchone()
+            
+            if not result or not result[0]:
+                # No family group, return just this user
+                return [user_id]
+            
+            # Parse the family JSON array
+            import json
+            try:
+                family_ids = json.loads(result[0])
+                if isinstance(family_ids, list):
+                    return family_ids
+                else:
+                    logger.error(f"Invalid family format for user {user_id}: {result[0]}")
+                    return [user_id]
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON in family column for user {user_id}: {result[0]}")
+                return [user_id]
+    except Exception as e:
+        logger.error(f"Error in get_family_members: {e}")
+        return [user_id]
+    finally:
+        if conn and not conn.closed:
+            conn.close()
+
+def get_family_budget(family_member_ids: List[int]) -> float:
+    """
+    Get the budget set by any family member.
+    Returns the first non-null budget found, or None if no budget is set.
+    """
+    if not family_member_ids:
+        return None
+    
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Get the first non-null budget from any family member
+            cur.execute(
+                """
+                SELECT budget FROM users 
+                WHERE id = ANY(%s) AND budget IS NOT NULL AND budget > 0
+                ORDER BY id
+                LIMIT 1
+                """,
+                (family_member_ids,)
+            )
+            result = cur.fetchone()
+            return float(result[0]) if result else None
+    except Exception as e:
+        logger.error(f"Error in get_family_budget: {e}")
+        return None
+    finally:
+        if conn and not conn.closed:
+            conn.close()
+
+def get_family_monthly_summary(year: int, month: int, family_member_ids: List[int]) -> List[Tuple[str, float]]:
+    """
+    Get monthly summary for all family members combined.
+    Returns a list of (category, total_amount) for the given year/month.
+    """
+    if not family_member_ids:
+        return []
+    
+    sql = """
+        SELECT category, SUM(amount) AS total
+        FROM expenses
+        WHERE date >= %s AND date < %s AND user_id = ANY(%s)
+        GROUP BY category
+        ORDER BY category;
+    """
+    
+    from datetime import date
+    start = date(year, month, 1)
+    # advance one month safely
+    if month == 12:
+        end = date(year+1, 1, 1)
+    else:
+        end = date(year, month+1, 1)
+    
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (start, end, family_member_ids))
+            return cur.fetchall()  # list of (category, total)
+    except Exception as e:
+        logger.error(f"Error in get_family_monthly_summary: {e}")
+        return []
+    finally:
+        if conn and not conn.closed:
+            conn.close()

@@ -261,8 +261,18 @@ def create_category_keyboard():
 def build_summary_message(amount, category, description, user_id):
     """Build a formatted summary message for the current month for a specific user."""
     today = date.today()
-    rows = db.get_monthly_summary(today.year, today.month, user_id=user_id)
-    logger.info(f"[SUMMARY] Raw rows from DB: {rows}")
+    
+    # Get family members for this user
+    family_member_ids = db.get_family_members(user_id)
+    logger.info(f"[SUMMARY] Family members for user {user_id}: {family_member_ids}")
+    
+    # Get combined family expenses if user is part of a family
+    if len(family_member_ids) > 1:
+        rows = db.get_family_monthly_summary(today.year, today.month, family_member_ids)
+        logger.info(f"[SUMMARY] Family summary - Raw rows from DB: {rows}")
+    else:
+        rows = db.get_monthly_summary(today.year, today.month, user_id=user_id)
+        logger.info(f"[SUMMARY] Individual summary - Raw rows from DB: {rows}")
 
     # Include zero totals for categories without entries
     logger.info("[SUMMARY] Building totals dictionary")
@@ -279,7 +289,11 @@ def build_summary_message(amount, category, description, user_id):
     # ASCII separator
     sep_line = "-" * TOTAL_WIDTH
 
-    lines = ["```", sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
+    # Add family indicator if applicable
+    if len(family_member_ids) > 1:
+        lines = [f"👨‍👩‍👧‍👦 **Family Summary** ({len(family_member_ids)} members)", "```", sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
+    else:
+        lines = ["```", sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
 
     # Sort categories by descending expense
     sorted_items = sorted(totals.items(), key=lambda kv: kv[1], reverse=True)
@@ -294,33 +308,31 @@ def build_summary_message(amount, category, description, user_id):
     lines.append(f"{'Grand Total':<{CAT_WIDTH}}{grand:>{AMT_WIDTH}.0f}")
     lines.append("```")
     
-    # Add budget information if user has set a budget
+    # Add budget information if family has set a budget
     try:
-        # Get user budget from database using internal user_id
-        conn = db.get_connection()
-        with conn.cursor() as cur:
-            cur.execute("SELECT budget FROM users WHERE id = %s", (user_id,))
-            result = cur.fetchone()
-            if result and result[0]:
-                budget = float(result[0])
-                remaining = budget - grand
-                budget_percentage = (grand / budget) * 100
-                
-                # Add budget section
-                lines.append("")  # Empty line for spacing
+        # Get family budget
+        family_budget = db.get_family_budget(family_member_ids)
+        if family_budget:
+            remaining = family_budget - grand
+            budget_percentage = (grand / family_budget) * 100
+            
+            # Add budget section
+            lines.append("")  # Empty line for spacing
+            if len(family_member_ids) > 1:
+                lines.append("💰 **Family Budget Status**")
+            else:
                 lines.append("💰 **Budget Status**")
-                lines.append(f"Monthly Budget: ₹{budget:,.2f}")
-                lines.append(f"Spent: ₹{grand:,.2f}")
-                lines.append(f"Remaining: ₹{remaining:,.2f}")
-                
-                # Add status indicator
-                if budget_percentage > 100:
-                    lines.append(f"⚠️ Over budget by ₹{abs(remaining):,.2f} ({budget_percentage:.1f}%)")
-                elif budget_percentage > 80:
-                    lines.append(f"🟡 {budget_percentage:.1f}% of budget used")
-                else:
-                    lines.append(f"✅ {budget_percentage:.1f}% of budget used")
-        conn.close()
+            lines.append(f"Monthly Budget: ₹{family_budget:,.2f}")
+            lines.append(f"Spent: ₹{grand:,.2f}")
+            lines.append(f"Remaining: ₹{remaining:,.2f}")
+            
+            # Add status indicator
+            if budget_percentage > 100:
+                lines.append(f"⚠️ Over budget by ₹{abs(remaining):,.2f} ({budget_percentage:.1f}%)")
+            elif budget_percentage > 80:
+                lines.append(f"🟡 {budget_percentage:.1f}% of budget used")
+            else:
+                lines.append(f"✅ {budget_percentage:.1f}% of budget used")
     except Exception as e:
         logger.error(f"[SUMMARY] Error getting budget info: {e}")
         # Continue without budget info if there's an error

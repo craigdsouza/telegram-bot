@@ -19,19 +19,39 @@ async def budget_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await update.message.reply_text("You need to /start the bot first.")
         return ConversationHandler.END
     
-    current_budget = user.get('budget')
-    if current_budget:
-        await update.message.reply_text(
-            f"Your current monthly budget is ₹{current_budget:,.2f}\n\n"
-            "Enter your new monthly budget amount (e.g., 5000):",
-            reply_markup=ReplyKeyboardRemove()
-        )
+    # Check if user is part of a family
+    family_member_ids = db.get_family_members(user['id'])
+    family_budget = db.get_family_budget(family_member_ids)
+    
+    if len(family_member_ids) > 1:
+        # Family budget
+        if family_budget:
+            await update.message.reply_text(
+                f"Your family's current monthly budget is ₹{family_budget:,.2f}\n\n"
+                "Enter your new family monthly budget amount (e.g., 10000):",
+                reply_markup=ReplyKeyboardRemove()
+            )
+        else:
+            await update.message.reply_text(
+                f"Set your family's monthly budget! ({len(family_member_ids)} members)\n\n"
+                "Enter your family monthly budget amount (e.g., 10000):",
+                reply_markup=ReplyKeyboardRemove()
+            )
     else:
-        await update.message.reply_text(
-            "Set your monthly budget to track your spending!\n\n"
-            "Enter your monthly budget amount (e.g., 5000):",
-            reply_markup=ReplyKeyboardRemove()
-        )
+        # Individual budget
+        current_budget = user.get('budget')
+        if current_budget:
+            await update.message.reply_text(
+                f"Your current monthly budget is ₹{current_budget:,.2f}\n\n"
+                "Enter your new monthly budget amount (e.g., 5000):",
+                reply_markup=ReplyKeyboardRemove()
+            )
+        else:
+            await update.message.reply_text(
+                "Set your monthly budget to track your spending!\n\n"
+                "Enter your monthly budget amount (e.g., 5000):",
+                reply_markup=ReplyKeyboardRemove()
+            )
     
     return BUDGET_AMOUNT
 
@@ -67,21 +87,40 @@ async def receive_budget_amount(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("You need to /start the bot first.")
         return ConversationHandler.END
 
+    # Check if user is part of a family
+    family_member_ids = db.get_family_members(db_user['id'])
+    
     conn = db.get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE users SET budget = %s WHERE id = %s",
-                (budget_amount, db_user['id'])
-            )
-            conn.commit()
-        
-        await update.message.reply_text(
-            f"✅ Monthly budget set to ₹{budget_amount:,.2f}!\n\n"
-            "You can now track your spending against this budget. "
-            "Use /summary to see your current month's expenses."
-        )
-        logger.info(f"Budget set to ₹{budget_amount:,.2f} for user {update.effective_user.id}")
+            if len(family_member_ids) > 1:
+                # Set budget for all family members
+                cur.execute(
+                    "UPDATE users SET budget = %s WHERE id = ANY(%s)",
+                    (budget_amount, family_member_ids)
+                )
+                conn.commit()
+                
+                await update.message.reply_text(
+                    f"✅ Family monthly budget set to ₹{budget_amount:,.2f}!\n\n"
+                    f"This budget applies to all {len(family_member_ids)} family members. "
+                    "Use /summary to see your family's combined expenses."
+                )
+                logger.info(f"Family budget set to ₹{budget_amount:,.2f} for {len(family_member_ids)} members")
+            else:
+                # Set individual budget
+                cur.execute(
+                    "UPDATE users SET budget = %s WHERE id = %s",
+                    (budget_amount, db_user['id'])
+                )
+                conn.commit()
+                
+                await update.message.reply_text(
+                    f"✅ Monthly budget set to ₹{budget_amount:,.2f}!\n\n"
+                    "You can now track your spending against this budget. "
+                    "Use /summary to see your current month's expenses."
+                )
+                logger.info(f"Budget set to ₹{budget_amount:,.2f} for user {update.effective_user.id}")
     finally:
         conn.close()
     
@@ -105,39 +144,65 @@ async def budget_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("You need to /start the bot first.")
         return
     
-    current_budget = user.get('budget')
-    if not current_budget:
-        await update.message.reply_text(
-            "You haven't set a monthly budget yet.\n\n"
-            "Use /budget to set your monthly spending limit!"
-        )
+    # Get family information
+    family_member_ids = db.get_family_members(user['id'])
+    family_budget = db.get_family_budget(family_member_ids)
+    
+    if not family_budget:
+        if len(family_member_ids) > 1:
+            await update.message.reply_text(
+                "Your family hasn't set a monthly budget yet.\n\n"
+                "Use /budget to set your family's monthly spending limit!"
+            )
+        else:
+            await update.message.reply_text(
+                "You haven't set a monthly budget yet.\n\n"
+                "Use /budget to set your monthly spending limit!"
+            )
         return
     
     # Get current month's expenses
     from datetime import date
     today = date.today()
-    monthly_expenses = db.get_monthly_summary(today.year, today.month, user['id'])
-    total_spent = sum(amount for _, amount in monthly_expenses)
+    
+    if len(family_member_ids) > 1:
+        # Family expenses
+        monthly_expenses = db.get_family_monthly_summary(today.year, today.month, family_member_ids)
+        total_spent = sum(amount for _, amount in monthly_expenses)
+        
+        message = (
+            f"💰 **Family Monthly Budget Status**\n\n"
+            f"Family Members: {len(family_member_ids)}\n"
+            f"Budget: ₹{family_budget:,.2f}\n"
+            f"Spent this month: ₹{total_spent:,.2f}\n"
+        )
+    else:
+        # Individual expenses
+        monthly_expenses = db.get_monthly_summary(today.year, today.month, user['id'])
+        total_spent = sum(amount for _, amount in monthly_expenses)
+        
+        message = (
+            f"💰 **Monthly Budget Status**\n\n"
+            f"Budget: ₹{family_budget:,.2f}\n"
+            f"Spent this month: ₹{total_spent:,.2f}\n"
+        )
     
     # Calculate budget status
-    budget_percentage = (total_spent / current_budget) * 100
-    remaining = current_budget - total_spent
+    budget_percentage = (total_spent / family_budget) * 100
+    remaining = family_budget - total_spent
     
     status_emoji = "🟢" if budget_percentage <= 80 else "🟡" if budget_percentage <= 100 else "🔴"
     
-    message = (
-        f"💰 **Monthly Budget Status**\n\n"
-        f"Budget: ₹{current_budget:,.2f}\n"
-        f"Spent this month: ₹{total_spent:,.2f}\n"
+    message += (
         f"Remaining: ₹{remaining:,.2f}\n\n"
         f"{status_emoji} {budget_percentage:.1f}% of budget used\n\n"
     )
     
     if budget_percentage > 100:
-        message += f"⚠️ You're over budget by ₹{abs(remaining):,.2f}"
+        message += f"⚠️ Over budget by ₹{abs(remaining):,.2f}"
     elif budget_percentage > 80:
-        message += "⚠️ You're approaching your budget limit"
+        message += "⚠️ Approaching budget limit"
     else:
-        message += "✅ You're within your budget"
+        message += "✅ Within budget"
     
     await update.message.reply_text(message) 

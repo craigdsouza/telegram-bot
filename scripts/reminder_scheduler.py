@@ -9,24 +9,9 @@ import logging
 import re
 import asyncio
 
-# Enable logging
-logging.basicConfig(
-    filename='bot.log',
-    filemode='a',
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+# Get logger - don't set up logging here since we're running as a thread
+# The main bot process already configures logging
 logger = logging.getLogger(__name__)
-
-# Send logs to console as well
-def _enable_console_logging():
-    console_handler = logging.StreamHandler() # send logs to console
-    console_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-_enable_console_logging()
 
 load_dotenv()
 try:
@@ -138,8 +123,8 @@ def start_reminder_scheduler():
     schedule_all_reminders(scheduler)
     from time import sleep
     while True:
-        sleep(3600)  # Sleep for 10 minutes
-        logger.info("Running 10min frequency reminder check")
+        sleep(3600)  # Sleep for 1 hour
+        logger.info("Running 1 hour frequency reminder check")
         schedule_all_reminders(scheduler)  # Re-schedule to catch new/changed reminders
 
 if __name__ == "__main__":

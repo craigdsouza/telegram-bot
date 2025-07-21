@@ -38,6 +38,7 @@ from handlers.conversation import (
 )
 from data import db
 from handlers.reminder import reminder_start, receive_reminder_time, cancel as reminder_cancel, REMINDER_TIME
+from handlers.budget import budget_start, receive_budget_amount, budget_cancel, budget_info, BUDGET_AMOUNT
 
 # Set up logging
 logger = setup_logging()
@@ -106,6 +107,19 @@ def create_reminder_conversation_handler():
         per_user=True,
         per_message=False,
     )
+
+def create_budget_conversation_handler():
+    """Create and configure the conversation handler for budget setup."""
+    return ConversationHandler(
+        entry_points=[CommandHandler('budget', budget_start)],
+        states={
+            BUDGET_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_budget_amount)],
+        },
+        fallbacks=[CommandHandler('cancel', budget_cancel)],
+        per_chat=True,
+        per_user=True,
+        per_message=False,
+    )
     
 
 def setup_handlers(application):
@@ -118,12 +132,17 @@ def setup_handlers(application):
     reminder_conv_handler = create_reminder_conversation_handler()
     application.add_handler(reminder_conv_handler)
     
+    # Add budget conversation handler
+    budget_conv_handler = create_budget_conversation_handler()
+    application.add_handler(budget_conv_handler)
+    
     # Add basic command handlers
     application.add_handler(CommandHandler('dbtest', db_test))
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', start))
     application.add_handler(CommandHandler('summary', summary))
     application.add_handler(CommandHandler('app', app))
+    application.add_handler(CommandHandler('budgetinfo', budget_info))
     
     # Log all updates after handlers, for debugging
     application.add_handler(MessageHandler(filters.ALL, debug_all), group=1)

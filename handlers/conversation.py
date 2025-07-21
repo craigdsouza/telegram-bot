@@ -293,6 +293,38 @@ def build_summary_message(amount, category, description, user_id):
     logger.info(f"[SUMMARY] Grand total: {grand}")
     lines.append(f"{'Grand Total':<{CAT_WIDTH}}{grand:>{AMT_WIDTH}.0f}")
     lines.append("```")
+    
+    # Add budget information if user has set a budget
+    try:
+        # Get user budget from database using internal user_id
+        conn = db.get_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT budget FROM users WHERE id = %s", (user_id,))
+            result = cur.fetchone()
+            if result and result[0]:
+                budget = float(result[0])
+                remaining = budget - grand
+                budget_percentage = (grand / budget) * 100
+                
+                # Add budget section
+                lines.append("")  # Empty line for spacing
+                lines.append("💰 **Budget Status**")
+                lines.append(f"Monthly Budget: ₹{budget:,.2f}")
+                lines.append(f"Spent: ₹{grand:,.2f}")
+                lines.append(f"Remaining: ₹{remaining:,.2f}")
+                
+                # Add status indicator
+                if budget_percentage > 100:
+                    lines.append(f"⚠️ Over budget by ₹{abs(remaining):,.2f} ({budget_percentage:.1f}%)")
+                elif budget_percentage > 80:
+                    lines.append(f"🟡 {budget_percentage:.1f}% of budget used")
+                else:
+                    lines.append(f"✅ {budget_percentage:.1f}% of budget used")
+        conn.close()
+    except Exception as e:
+        logger.error(f"[SUMMARY] Error getting budget info: {e}")
+        # Continue without budget info if there's an error
+    
     return "\n".join(lines)
 
 

@@ -62,8 +62,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👋 Welcome, {user.first_name}!\n\n"
         "I'm your personal expense tracker. Here's what you can do:\n"
         "• /add - Add a new expense\n"
-        "• /summary - View monthly summary\n"
-        "• /help - Show available commands"
+        "• /summary - View summary of current month’s expenses and budget status\n"
+        "• /budget - Set monthly budget\n"
+        "• /reminder - set a time for daily reminder, (e.g. 21:00 for 9p.m.)\n"
+        "• /cancel - exit current conversation"
     )
     
     await update.message.reply_text(welcome_message)

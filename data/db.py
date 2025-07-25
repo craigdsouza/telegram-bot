@@ -164,6 +164,16 @@ def get_or_create_user(telegram_user_id: int, first_name: str = None, last_name:
                     (telegram_user_id, first_name, last_name)
                 )
                 new_user = cur.fetchone()
+                # Auto-create user_settings row for new user
+                if new_user:
+                    cur.execute(
+                        """
+                        INSERT INTO user_settings (user_id, first_name, last_name)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (user_id) DO NOTHING
+                        """,
+                        (new_user['id'], new_user['first_name'], new_user['last_name'])
+                    )
                 conn.commit()
                 logger.info(f"Created new user: {new_user}")
                 return dict(new_user) if new_user else None

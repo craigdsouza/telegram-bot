@@ -70,6 +70,7 @@ def add_expense(date, amount, category, description=None, user_id=None):
 def get_monthly_summary(year: int, month: int, user_id: int) -> List[Tuple[str, float]]:
     """
     Returns a list of (category, total_amount) for the given year/month, filtered by user.
+    Supports custom month start dates from user settings.
     """
     
     sql = """
@@ -80,12 +81,43 @@ def get_monthly_summary(year: int, month: int, user_id: int) -> List[Tuple[str, 
         ORDER BY category;
     """
     
-    start = date(year, month, 1)
-    # advance one month safely
-    if month == 12:
-        end = date(year+1, 1, 1)
+    # Get user settings to check for custom month start
+    user_settings = get_user_settings(user_id)
+    
+    if user_settings and user_settings.get('month_start') is not None:
+        # Custom month period (e.g., 15th to 14th)
+        month_start = user_settings['month_start']
+        from datetime import datetime
+        
+        # Calculate start of current period
+        today = datetime.now()
+        if month_start <= today.day:
+            # Current period started this month
+            start = date(year, month, month_start)
+        else:
+            # Current period started last month
+            if month == 1:
+                start = date(year - 1, 12, month_start)
+            else:
+                start = date(year, month - 1, month_start)
+        
+        # Calculate end of current period
+        if month == 12:
+            end = date(year + 1, 1, month_start)
+        else:
+            end = date(year, month + 1, month_start)
+        
+        logger.info(f"[SUMMARY] Custom period for user {user_id}: {start} to {end}")
     else:
-        end = date(year, month+1, 1)
+        # Standard calendar month (1st to last day)
+        start = date(year, month, 1)
+        # advance one month safely
+        if month == 12:
+            end = date(year+1, 1, 1)
+        else:
+            end = date(year, month+1, 1)
+        logger.info(f"[SUMMARY] Standard period for user {user_id}: {start} to {end}")
+    
     conn = get_connection()
     with conn, conn.cursor() as cur:
         cur.execute(sql, (start, end, user_id))
@@ -281,10 +313,37 @@ def get_family_budget(family_member_ids: List[int]) -> float:
         if conn and not conn.closed:
             conn.close()
 
+def get_user_settings(user_id: int) -> dict:
+    """
+    Get user settings including month_start and month_end.
+    Returns a dictionary with user settings or None if not found.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute(
+                """
+                SELECT user_id, first_name, last_name, month_start, month_end
+                FROM user_settings
+                WHERE user_id = %s
+                """,
+                (user_id,)
+            )
+            result = cur.fetchone()
+            return dict(result) if result else None
+    except Exception as e:
+        logger.error(f"Error in get_user_settings: {e}")
+        return None
+    finally:
+        if conn and not conn.closed:
+            conn.close()
+
+
 def get_family_monthly_summary(year: int, month: int, family_member_ids: List[int]) -> List[Tuple[str, float]]:
     """
     Get monthly summary for all family members combined.
     Returns a list of (category, total_amount) for the given year/month.
+    Supports custom month start dates from the first family member's settings.
     """
     if not family_member_ids:
         return []
@@ -297,13 +356,42 @@ def get_family_monthly_summary(year: int, month: int, family_member_ids: List[in
         ORDER BY category;
     """
     
-    from datetime import date
-    start = date(year, month, 1)
-    # advance one month safely
-    if month == 12:
-        end = date(year+1, 1, 1)
+    # Get settings from the first family member to determine custom period
+    first_member_settings = get_user_settings(family_member_ids[0])
+    
+    if first_member_settings and first_member_settings.get('month_start') is not None:
+        # Custom month period (e.g., 15th to 14th)
+        month_start = first_member_settings['month_start']
+        from datetime import datetime
+        
+        # Calculate start of current period
+        today = datetime.now()
+        if month_start <= today.day:
+            # Current period started this month
+            start = date(year, month, month_start)
+        else:
+            # Current period started last month
+            if month == 1:
+                start = date(year - 1, 12, month_start)
+            else:
+                start = date(year, month - 1, month_start)
+        
+        # Calculate end of current period
+        if month == 12:
+            end = date(year + 1, 1, month_start)
+        else:
+            end = date(year, month + 1, month_start)
+        
+        logger.info(f"[SUMMARY] Family custom period: {start} to {end}")
     else:
-        end = date(year, month+1, 1)
+        # Standard calendar month (1st to last day)
+        start = date(year, month, 1)
+        # advance one month safely
+        if month == 12:
+            end = date(year+1, 1, 1)
+        else:
+            end = date(year, month+1, 1)
+        logger.info(f"[SUMMARY] Family standard period: {start} to {end}")
     
     conn = get_connection()
     try:

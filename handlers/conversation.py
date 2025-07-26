@@ -272,6 +272,10 @@ def build_summary_message(amount, category, description, user_id):
     family_member_ids = db.get_family_members(user_id)
     logger.info(f"[SUMMARY] Family members for user {user_id}: {family_member_ids}")
     
+    # Check if user has custom month start date
+    user_settings = db.get_user_settings(user_id)
+    custom_period = user_settings and user_settings.get('month_start') is not None
+    
     # Get combined family expenses if user is part of a family
     if len(family_member_ids) > 1:
         rows = db.get_family_monthly_summary(today.year, today.month, family_member_ids)
@@ -295,11 +299,17 @@ def build_summary_message(amount, category, description, user_id):
     # ASCII separator
     sep_line = "-" * TOTAL_WIDTH
 
-    # Add family indicator if applicable
+    # Add family indicator and custom period info if applicable
     if len(family_member_ids) > 1:
-        lines = [f"👨‍👩‍👧‍👦 **Family Summary** ({len(family_member_ids)} members)", "```", sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
+        header = f"👨‍👩‍👧‍👦 **Family Summary** ({len(family_member_ids)} members)"
+        if custom_period:
+            header += f"\n📅 Custom period (starts {user_settings['month_start']}th)"
+        lines = [header, "```", sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
     else:
-        lines = ["```", sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
+        header = "**Monthly Summary**"
+        if custom_period:
+            header += f"\n📅 Custom period (starts {user_settings['month_start']}th)"
+        lines = [header, "```", sep_line, f"{'Category':<{CAT_WIDTH}}{'Total':>{AMT_WIDTH}}", sep_line]
 
     # Sort categories by descending expense
     sorted_items = sorted(totals.items(), key=lambda kv: kv[1], reverse=True)

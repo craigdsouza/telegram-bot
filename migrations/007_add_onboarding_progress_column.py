@@ -4,7 +4,7 @@ This script will:
 1. Add an onboarding_progress JSONB column to track detailed onboarding progress
 2. Migrate existing onboarding data to the new format
 3. Drop the old onboarding column
-4. Set default value with initial progress structure
+4. Set default value with initial progress structure for single-step onboarding
 """
 import os
 import sys
@@ -45,6 +45,7 @@ def add_onboarding_progress_column():
                 return
             
             # Add onboarding_progress column to users table
+            # Default to single-step onboarding (welcome step only)
             cur.execute("""
                 ALTER TABLE users 
                 ADD COLUMN onboarding_progress JSONB DEFAULT '{"current_step": 0, "completed_steps": [], "total_steps": 1, "step_data": {}}';
@@ -81,7 +82,7 @@ def add_onboarding_progress_column():
                             "completed_steps": [0],
                             "total_steps": 1,
                             "step_data": {
-                                "welcome": {
+                                "step_0": {
                                     "completed_at": "2024-01-01T00:00:00Z"
                                 }
                             }

@@ -33,14 +33,16 @@ def init_db():
                     date DATE NOT NULL,
                     amount NUMERIC NOT NULL,
                     category TEXT NOT NULL,
-                    description TEXT
+                    description TEXT,
+                    user_id INTEGER,
+                    mode TEXT
                 );
             """)
     conn.close()
 
-def add_expense(date, amount, category, description=None, user_id=None):
+def add_expense(date, amount, category, description=None, user_id=None, mode=None):
     """
-    Inserts a row into expenses(date, amount, category, description, user_id).
+    Inserts a row into expenses(date, amount, category, description, user_id, mode).
     
     Args:
         date: The date of the expense
@@ -48,16 +50,17 @@ def add_expense(date, amount, category, description=None, user_id=None):
         category: The category of the expense
         description: Optional description of the expense
         user_id: The ID of the user who made the expense
+        mode: The payment mode (UPI, CASH, DEBIT CARD, CREDIT CARD) - optional for bot
     """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO expenses (date, amount, category, description, user_id)
-                VALUES (%s, %s, %s, %s, %s);
+                INSERT INTO expenses (date, amount, category, description, user_id, mode)
+                VALUES (%s, %s, %s, %s, %s, %s);
                 """,
-                (date, amount, category, description, user_id)
+                (date, amount, category, description, user_id, mode)
             )
             conn.commit()
     except Exception as e:

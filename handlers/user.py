@@ -120,7 +120,20 @@ async def app(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_str = f"User {user.id} ({user.first_name} {user.last_name})"
     logger.info(f"[APP] {user_str} - /app command received")
-    mini_app_url = os.environ.get("MINI_APP_URL") # "https://telegram-mini-app-production-8aae.up.railway.app/"
+    
+    # Enhanced logging for MINI_APP_URL debugging
+    mini_app_url = os.environ.get("MINI_APP_URL")
+    logger.info(f"[APP] {user_str} - MINI_APP_URL from environment: {mini_app_url}")
+    
+    if not mini_app_url:
+        logger.error(f"[APP] {user_str} - MINI_APP_URL environment variable is not set!")
+        await update.message.reply_text("❌ Mini app URL not configured. Please contact support.")
+        return
+    
+    # Log the exact URL being used
+    logger.info(f"[APP] {user_str} - Creating WebApp button with URL: {mini_app_url}")
+    logger.info(f"[APP] {user_str} - URL type: {type(mini_app_url)}")
+    logger.info(f"[APP] {user_str} - URL length: {len(mini_app_url) if mini_app_url else 0}")
 
     # Create a keyboard with a Web App button
     keyboard = [
@@ -128,7 +141,9 @@ async def app(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
+    logger.info(f"[APP] {user_str} - Sending keyboard with WebApp button")
     await update.message.reply_text(
         "Click the button below to open the Expense Mini App:",
         reply_markup=reply_markup
-    ) 
+    )
+    logger.info(f"[APP] {user_str} - WebApp button sent successfully") 

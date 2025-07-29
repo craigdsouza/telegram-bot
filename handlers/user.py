@@ -120,7 +120,7 @@ async def app(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_str = f"User {user.id} ({user.first_name} {user.last_name})"
     logger.info(f"[APP] {user_str} - /app command received")
-    mini_app_url = os.environ.get("MINI_APP_URL", "https://telegram-mini-app-production-8aae.up.railway.app/")
+    mini_app_url = os.environ.get("MINI_APP_URL") # "https://telegram-mini-app-production-8aae.up.railway.app/"
 
     # Create a keyboard with a Web App button
     keyboard = [

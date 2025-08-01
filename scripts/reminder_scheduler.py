@@ -8,7 +8,16 @@ from dotenv import load_dotenv
 import logging
 import re
 import asyncio
-from telegram.request import Request
+
+# Try different import paths for Request class based on python-telegram-bot version
+try:
+    from telegram.request import Request
+except ImportError:
+    try:
+        from telegram.request._httpxrequest import HTTPXRequest as Request
+    except ImportError:
+        # Fallback to basic bot initialization without custom request settings
+        Request = None
 
 # Get logger - don't set up logging here since we're running as a thread
 # The main bot process already configures logging
@@ -20,18 +29,23 @@ reminder_cache = {}
 
 load_dotenv()
 try:
-    # Configure bot with larger connection pool and timeouts
-    bot = Bot(
-        token=os.getenv("TELEGRAM_BOT_TOKEN"),
-        request=Request(
-            connection_pool_size=20,  # Increase pool size
-            connect_timeout=30.0,
-            read_timeout=30.0,
-            write_timeout=30.0,
-            pool_timeout=60.0  # Increase pool timeout
+    if Request is not None:
+        # Configure bot with larger connection pool and timeouts
+        bot = Bot(
+            token=os.getenv("TELEGRAM_BOT_TOKEN"),
+            request=Request(
+                connection_pool_size=20,  # Increase pool size
+                connect_timeout=30.0,
+                read_timeout=30.0,
+                write_timeout=30.0,
+                pool_timeout=60.0  # Increase pool timeout
+            )
         )
-    )
-    logger.info("Bot initialized with enhanced connection pool settings")
+        logger.info("Bot initialized with enhanced connection pool settings")
+    else:
+        # Fallback to basic bot initialization
+        bot = Bot(token=os.getenv("TELEGRAM_BOT_TOKEN"))
+        logger.info("Bot initialized with default settings (Request import not available)")
 except Exception as e:
     logger.error(f"Failed to initialize bot: {e}")
     raise e

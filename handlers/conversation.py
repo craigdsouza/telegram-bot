@@ -319,8 +319,9 @@ def build_summary_message(amount, category, description, user_id):
         lines.append(f"{display:<{CAT_WIDTH}}{total:>{AMT_WIDTH}.0f}")
     
     lines.append(sep_line)
-    grand = sum(totals.values())
-    logger.info(f"[SUMMARY] Grand total: {grand}")
+    # Calculate grand total excluding Transfers category
+    grand = sum(total for category, total in totals.items() if category != 'Transfers')
+    logger.info(f"[SUMMARY] Grand total (excluding Transfers): {grand}")
     lines.append(f"{'Grand Total':<{CAT_WIDTH}}{grand:>{AMT_WIDTH}.0f}")
     lines.append("```")
     

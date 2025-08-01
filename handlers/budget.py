@@ -177,7 +177,7 @@ async def budget_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if len(family_member_ids) > 1:
         # Family expenses
         monthly_expenses = db.get_family_monthly_summary(today.year, today.month, family_member_ids)
-        total_spent = sum(amount for _, amount in monthly_expenses)
+        total_spent = sum(amount for category, amount in monthly_expenses if category != 'Transfers')
         
         message = (
             f"💰 **Family Monthly Budget Status**\n\n"
@@ -188,7 +188,7 @@ async def budget_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     else:
         # Individual expenses
         monthly_expenses = db.get_monthly_summary(today.year, today.month, user_db['id'])
-        total_spent = sum(amount for _, amount in monthly_expenses)
+        total_spent = sum(amount for category, amount in monthly_expenses if category != 'Transfers')
         
         message = (
             f"💰 **Monthly Budget Status**\n\n"
